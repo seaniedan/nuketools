@@ -250,7 +250,7 @@ viewer_menu.addCommand('Set Viewer Handles/ask',
 
 # Add screengrab snapshot command to the Viewer Menu
 viewer_menu.addCommand('Screengrab Viewer',
-    "import screengrab_viewer; screengrab_viewer.capture_viewer()")
+    "import screengrab_viewer_sd; screengrab_viewer_sd.capture_viewer()")
 
 del(viewer_menu)
 
