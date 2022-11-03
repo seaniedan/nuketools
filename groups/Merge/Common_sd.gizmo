@@ -1,0 +1,118 @@
+Group {
+inputs 2
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+name Common_sd1
+help "Compare a painted image to the original, so you can put the different parts over the original. By Sean Danischevsky 2004..2011..2015. "
+selected true
+addUserKnob {20 Common_sd}
+addUserKnob {26 sean l "" t "for latest version, email sean@danischevsky.com" +STARTLINE T "Common_sd by Sean Danischevsky 2004,2011,2015,2019"}
+addUserKnob {4 method M {Difference "Darker Only" "Brighter Only" ""}}
+addUserKnob {41 range t "Pull point B towards 1 to soften the edge of your matte. Pull point A towards 1 to reduce the amount of paintwork added to your image." T Keyer1.range}
+addUserKnob {41 mode l "luminance math" t "'Maximum' returns the maximum difference between the paintwork and the image. Other options allow for perceptual differences. " T Saturation1.mode}
+addUserKnob {26 ""}
+addUserKnob {14 medianSize l "median alpha size" R 0 100}
+addUserKnob {41 size l "blur size" t "blur resulting matte before premultiply" T Blur1.size}
+addUserKnob {26 ""}
+addUserKnob {41 channels l multiply T Premult2.channels}
+addUserKnob {41 alpha l by T Premult2.alpha}
+addUserKnob {41 invert T Premult2.invert}
+}
+Input {
+inputs 0
+name Image
+xpos -40
+ypos -746
+number 1
+}
+set Nf30f4b60 [stack 0]
+Input {
+inputs 0
+name Paint
+xpos 120
+ypos -746
+}
+set N709db8b0 [stack 0]
+Merge2 {
+inputs 2
+operation from
+name Merge2
+xpos 583
+ypos -636
+}
+push $N709db8b0
+push $Nf30f4b60
+Merge2 {
+inputs 2
+operation from
+name Merge1
+xpos 396
+ypos -633
+}
+push $N709db8b0
+push $Nf30f4b60
+Merge2 {
+inputs 2
+operation difference
+name Merge19
+selected true
+xpos 200
+ypos -634
+}
+Switch {
+inputs 3
+which {{method}}
+name Switch1
+xpos 198
+ypos -564
+}
+Saturation {
+saturation 0
+mode Maximum
+name Saturation1
+xpos 200
+ypos -506
+}
+Keyer {
+operation "luminance key"
+range {0 0 1 1}
+name Keyer1
+xpos 200
+ypos -465
+}
+Median {
+channels alpha
+size {{medianSize}}
+ignore_top_line false
+name Median1
+xpos 200
+ypos -427
+disable {{medianSize.w||medianSize.h?0:1}}
+}
+Blur {
+channels alpha
+size 1
+name Blur1
+xpos 200
+ypos -389
+}
+push $N709db8b0
+Copy {
+inputs 2
+from0 rgba.alpha
+to0 rgba.alpha
+name Copy3
+xpos 120
+ypos -289
+}
+Premult {
+name Premult2
+xpos 120
+ypos -234
+}
+Output {
+name Output1
+xpos 120
+ypos -186
+}
+end_group

@@ -1,0 +1,120 @@
+Group {
+name Dilate_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+selected true
+xpos 1380
+ypos -257
+addUserKnob {20 Dilate_sd}
+addUserKnob {41 channels l "Layer Copy" T Copy1.channels}
+addUserKnob {7 size l "erode / dilate size" R -25 25}
+addUserKnob {7 strength}
+addUserKnob {41 filter T Blur1.filter}
+addUserKnob {41 quality l "" -STARTLINE T Blur1.quality}
+addUserKnob {41 crop l "crop to format" T Blur1.crop}
+addUserKnob {41 maskChannel l "mask channel" T Keymix1.maskChannel}
+addUserKnob {41 invertMask l invert T Keymix1.invertMask}
+addUserKnob {41 mix T Keymix1.mix}
+}
+Input {
+inputs 0
+name mask
+xpos 536
+ypos -610
+number 1
+}
+Input {
+inputs 0
+name Input
+xpos -160
+ypos -757
+}
+set N1af12ec0 [stack 0]
+push $N1af12ec0
+Blur {
+size {{parent.size x1009 36}}
+name Blur1
+label "\[value size]"
+xpos 170
+ypos -687
+}
+set N1aef0ec0 [stack 0]
+Grade {
+channels all
+blackpoint {{(parent.strength/2)+.499}}
+white_clamp true
+name Grade2
+xpos 390
+ypos -458
+}
+push $N1af12ec0
+Merge2 {
+inputs 2
+operation min
+bbox B
+Achannels none
+Bchannels none
+output none
+also_merge all
+name Merge2
+xpos 280
+ypos -362
+}
+push $N1aef0ec0
+Grade {
+channels all
+whitepoint {{(1-parent.strength/2)-.5 x1009 0.68}}
+white_clamp true
+name Grade1
+xpos 10
+ypos -434
+}
+push $N1af12ec0
+Merge2 {
+inputs 2
+operation max
+Achannels none
+Bchannels none
+output none
+also_merge all
+name Merge1
+xpos -50
+ypos -362
+}
+Switch {
+inputs 3
+which {{Blur1.size==0?2:Blur1.size<0}}
+name Switch1
+xpos -50
+ypos -298
+}
+set N1aeb4cc0 [stack 0]
+push $N1af12ec0
+Keymix {
+inputs 3
+name Keymix1
+xpos 17
+ypos -233
+}
+push $N1aeb4cc0
+Switch {
+inputs 2
+which {{"\[exists parent.input1]"}}
+name Switch2
+xpos -50
+ypos -202
+}
+push $N1af12ec0
+Copy {
+inputs 2
+channels alpha
+name Copy1
+xpos -160
+ypos -161
+}
+Output {
+name Output1
+xpos -160
+ypos -109
+}
+end_group

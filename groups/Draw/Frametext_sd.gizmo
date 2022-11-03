@@ -1,0 +1,74 @@
+Group {
+ name Frametext_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ selected true
+ addUserKnob {20 User}
+ addUserKnob {41 message T Text1.message}
+ addUserKnob {41 global_font_scale l "global font scale" T Text1.global_font_scale}
+ addUserKnob {41 box T Text1.box}
+ addUserKnob {41 size l "dilate size" T Dilate1.size}
+ addUserKnob {41 xjustify l justify T Text1.xjustify}
+ addUserKnob {41 yjustify l "" -STARTLINE T Text1.yjustify}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos 119
+  ypos -577
+ }
+ Dot {
+  name Dot10
+  xpos 149
+  ypos -537
+ }
+set N59852b00 [stack 0]
+ Text2 {
+  font_size_toolbar 100
+  font_width_toolbar 100
+  font_height_toolbar 100
+  replace true
+  message "\[lindex \[split \[lindex \[split   \[file tail \[value root.name]]   _ ] end] .] 0]    Frame: \[value frame]\n"
+  old_message {{32 32 32 32 70 114 97 109 101 58 32 49 10}
+    }
+  old_expression_markers {{0 -1 11 11}
+    }
+  box {0 0 {width} {height}}
+  xjustify center
+  yjustify bottom
+  transforms {{0 2}
+    }
+  cursor_position 12
+  scale {1 1}
+  cursor_initialised true
+  autofit_bbox false
+  initial_cursor_position {{960 540}
+    }
+  group_animations {{0} imported: 0 selected: items: "root transform/"}
+  animation_layers {{1 11 960 540 0 0 1 1 0 0 0 0}
+    }
+  name Text1
+  selected true
+  xpos 170
+  ypos -397
+ }
+ Dilate {
+  channels alpha
+  size 2
+  name Dilate1
+  xpos 170
+  ypos -338
+ }
+push $N59852b00
+ Merge2 {
+  inputs 2
+  name Merge11
+  xpos 119
+  ypos -219
+ }
+ Output {
+  name Output1
+  xpos 119
+  ypos -120
+ }
+end_group

@@ -1,0 +1,113 @@
+Gizmo {
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos -150
+  ypos -250
+ }
+set N2abbe2c0 [stack 0]
+ Saturation {
+  saturation 0
+  name Saturation1
+  xpos -590
+  ypos -162
+ }
+set Ndd1e100 [stack 0]
+ TimeOffset {
+  time_offset 1
+  time ""
+  name TimeOffset2
+  xpos -480
+  ypos -72
+ }
+push $Ndd1e100
+ TimeOffset {
+  time_offset -1
+  time ""
+  name TimeOffset1
+  xpos -700
+  ypos -72
+ }
+push $Ndd1e100
+ Copy {
+  inputs 2
+  from0 rgba.red
+  to0 rgba.red
+  name Copy1
+  xpos -590
+  ypos -24
+ }
+ Copy {
+  inputs 2
+  from0 rgba.blue
+  to0 rgba.blue
+  name Copy2
+  xpos -590
+  ypos 24
+ }
+ Colorspace {
+  colorspace_out HSV
+  name Colorspace1
+  xpos -590
+  ypos 96
+ }
+ Shuffle {
+  red green
+  blue green
+  alpha green
+  name Shuffle1
+  xpos -590
+  ypos 134
+ }
+push $N2abbe2c0
+ TimeOffset {
+  time_offset 1
+  time ""
+  name TimeOffset3
+  xpos -8
+  ypos -64
+ }
+push $N2abbe2c0
+ Merge2 {
+  inputs 2
+  operation difference
+  name Merge2
+  xpos -65
+  ypos 62
+ }
+push $N2abbe2c0
+ TimeOffset {
+  time_offset -1
+  time ""
+  name TimeOffset4
+  xpos -228
+  ypos -64
+ }
+push $N2abbe2c0
+ Merge2 {
+  inputs 2
+  operation difference
+  name Merge1
+  xpos -228
+  ypos 62
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  name Merge3
+  xpos -150
+  ypos 158
+ }
+ Colorspace {
+  colorspace_out sRGB
+  name Colorspace2
+  xpos -150
+  ypos 184
+ }
+ Output {
+  name Output1
+  xpos -150
+  ypos 278
+ }
+end_group

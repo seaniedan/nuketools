@@ -1,0 +1,75 @@
+Gizmo {
+ addUserKnob {20 User l Grid_sd}
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ addUserKnob {20 big -STARTLINE n 1}
+ addUserKnob {41 color T Grid1.color}
+ addUserKnob {41 opacity T Grid1.opacity}
+ addUserKnob {41 number T Grid1.number}
+ addUserKnob {41 size T Grid1.size}
+ addUserKnob {20 endGroup_1 l endGroup n -1}
+ addUserKnob {41 disable_1 l disable T Grid1.disable}
+ addUserKnob {20 medium n 1}
+ medium 0
+ addUserKnob {41 color_1 l color T Grid2.color}
+ addUserKnob {41 opacity_1 l opacity T Grid2.opacity}
+ addUserKnob {41 number_1 l number T Grid2.number}
+ addUserKnob {41 size_1 l size T Grid2.size}
+ addUserKnob {20 endGroup_2 l endGroup n -1}
+ addUserKnob {41 disable_2 l disable T Grid2.disable}
+ addUserKnob {20 small n 1}
+ small 0
+ addUserKnob {41 color_2 l color T Grid3.color}
+ addUserKnob {41 opacity_2 l opacity T Grid3.opacity}
+ addUserKnob {41 number_2 l number T Grid3.number}
+ addUserKnob {41 size_2 l size T Grid3.size}
+ addUserKnob {20 endGroup n -1}
+ addUserKnob {41 disable_3 l disable T Grid3.disable}
+ addUserKnob {41 translate T Grid1.translate}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos 290
+  ypos 86
+ }
+ Colorspace {
+  colorspace_out sRGB
+  name Colorspace1
+  xpos 290
+  ypos 176
+ }
+ Grid {
+  opacity 0.85
+  number 2
+  size 8
+  color {1 0 0 1}
+  name Grid1
+  xpos 290
+  ypos 230
+ }
+ Grid {
+  opacity {{parent.Grid1.opacity}}
+  number 6
+  size 4
+  translate {{parent.Grid1.translate} {parent.Grid1.translate}}
+  color {{parent.Grid1.color} {parent.Grid1.color} {parent.Grid1.color} {parent.Grid1.color}}
+  name Grid2
+  xpos 290
+  ypos 302
+ }
+ Grid {
+  opacity {{parent.Grid1.opacity}}
+  number 48
+  translate {{parent.Grid1.translate} {parent.Grid1.translate}}
+  color {{parent.Grid1.color} {parent.Grid1.color} {parent.Grid1.color} {parent.Grid1.color}}
+  name Grid3
+  xpos 290
+  ypos 350
+ }
+ Output {
+  name Output1
+  xpos 290
+  ypos 470
+ }
+end_group

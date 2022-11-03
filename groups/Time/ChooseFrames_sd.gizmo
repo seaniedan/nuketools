@@ -1,0 +1,180 @@
+Group {
+name ChooseFrames_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+help "Click Add. The frame will be added to the list and processed.\n- Continue until you check all the footage. Click Remove to remove unwanted frames or Remove All to start again from scratch. Disable sanity check when finished.\n-  Enabling \"show frames numbers\" displays the equivalent frame on the original footage. This makes it easy to adjust specific frames."
+selected true
+addUserKnob {20 ChooseFrames_sd}
+addUserKnob {4 chooseStyle l choose -STARTLINE M {"bad frames" "good frames" "" "" "" "" "" ""}}
+addUserKnob {1 chosenFrames l frames t "Frames to use (if good) or not (if bad)"}
+addUserKnob {22 update_list l update -STARTLINE T "n=nuke.thisNode()\n\n#convert list of frames to integers\nframes = n\['chosenFrames'].value()\naFramesNum=nuke.FrameRanges(frames).toFrameList() or \[]\n\n\nprint ('aFramesNum', aFramesNum)\n\n#set the nodes inside the group\nn.begin()\n\nif n\['chooseStyle'].getValue(): \n    print ('good frames')\nelse: \n    print ('bad frames')\n    allFrames = range(n.firstFrame(), n.lastFrame()+1)\n    aFramesNum = list(set(allFrames) - set(aFramesNum))\n\n#clear current animations\nn1 = nuke.toNode('FrameHoldTo1s')\nn1\['first_frame'].clearAnimated(0)\nn1\['first_frame'].setAnimated(0)\nn2 = nuke.toNode('FrameHoldTo2s')\nn2\['first_frame'].clearAnimated(0)\nn2\['first_frame'].setAnimated(0)\n\nif aFramesNum:\n    #bring all good frames to 0 and seqence from there\n    for fr, num in enumerate(sorted(aFramesNum)):\n        n1\['first_frame'].setValueAt(num, fr+1)\n\n    #return all frames to original positions\n    for fr, num in enumerate(sorted(aFramesNum)):\n        n2\['first_frame'].setValueAt(fr+1, num)\n\nn.end()\n\n\n"}
+addUserKnob {22 btRemove l "Toggle Frame  " t "Remove current frame from the list" T "n = nuke.thisNode()\n\n#convert list of frames to integers\nframes= n\['chosenFrames'].value()\naFramesNum= nuke.FrameRanges(frames).toFrameList() or \[]\n\ncurrentFrame= nuke.frame()\n\nif currentFrame in aFramesNum:\n    #remove frame from list\n    aFramesNum.remove(currentFrame)\n\nelse:\n    #add frame to list\n    aFramesNum.append(currentFrame)\n\n#update list\nn\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\nnuke.thisNode()\['update_list'].execute()\n" +STARTLINE}
+addUserKnob {22 onXs T "n = nuke.thisNode()\nn\['chooseStyle'].setValue('good frames')\n\naFramesNum=range(int(n\['startingat'].value()),int(n.lastFrame()+1),int(n\['x'].value()))\nn\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\n# Execute\nnuke.thisNode()\['update_list'].execute()\n\n" +STARTLINE}
+addUserKnob {3 x -STARTLINE}
+x 2
+addUserKnob {3 startingat l "starting at" -STARTLINE}
+startingat 1
+addUserKnob {22 btAddAll l "  Add All  " t "Add all frames to the list" T "n = nuke.thisNode()\n\naFramesNum = range(n.firstFrame(), n.lastFrame()+1)\nn\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\n\n# Execute\nnuke.thisNode()\['update_list'].execute()\n\n\n" +STARTLINE}
+addUserKnob {22 btRemoveAll l "  Remove All  " t "Remove all frames from the list" -STARTLINE T "n = nuke.thisNode()\nn\['chosenFrames'].setValue('')\n\n# Execute\nnuke.thisNode()\['update_list'].execute()"}
+addUserKnob {41 method t "'Frame' takes the nearest chosen frame\n'Blend' mixes between 2 nearest chosen frames\n'Motion' does an optical flow. Use the OFlowOptions tab to adjust." T OFlow1.method}
+addUserKnob {6 showFrame l "show frames numbers" t "Shows the frame number corresponding to the original plate (unconverted)" +STARTLINE}
+addUserKnob {6 sanityCheck l "sanity check" t "Use to mix back result against the original footage to check for any slippage." +STARTLINE}
+addUserKnob {20 sanityOptions l "sanity check options" n 1}
+sanityOptions 0
+addUserKnob {41 blackpoint T Grade.blackpoint}
+addUserKnob {41 whitepoint T Grade.whitepoint}
+addUserKnob {20 endGroup n -1}
+addUserKnob {20 OFlowOptions}
+addUserKnob {41 filtering l Filtering T OFlow1.filtering}
+addUserKnob {41 warpMode l "Warp Mode" T OFlow1.warpMode}
+addUserKnob {41 correctLuminance l "Correct Luminance" T OFlow1.correctLuminance}
+addUserKnob {41 automaticShutterTime l "Automatic Shutter Time" T OFlow1.automaticShutterTime}
+addUserKnob {41 shutterTime l "Shutter Time" T OFlow1.shutterTime}
+addUserKnob {41 shutterSamples l "Shutter Samples" T OFlow1.shutterSamples}
+addUserKnob {41 vectorDetail l "Vector Detail" T OFlow1.vectorDetail}
+addUserKnob {41 smoothness l Smoothness T OFlow1.smoothness}
+addUserKnob {41 blockSize l "Block Size" T OFlow1.blockSize}
+addUserKnob {20 Tolerances n 2}
+addUserKnob {41 weightRed l "Weight Red" T OFlow1.weightRed}
+addUserKnob {41 weightGreen l "Weight Green" T OFlow1.weightGreen}
+addUserKnob {41 weightBlue l "Weight Blue" T OFlow1.weightBlue}
+addUserKnob {20 "" n -1}
+addUserKnob {41 showVectors l "Show Vectors" T OFlow1.showVectors}
+}
+Input {
+inputs 0
+name Input1
+xpos -710
+ypos -13
+}
+set N88eea60 [stack 0]
+push $N88eea60
+Text2 {
+font_size_toolbar 100
+font_width_toolbar 100
+font_height_toolbar 100
+message "frame \[frame]"
+box {0 0 1000 200}
+yjustify bottom
+transforms {{0 2}
+  }
+scale {1 1}
+cursor_initialised true
+autofit_bbox false
+initial_cursor_position {{0 1080}
+  }
+group_animations {{0} imported: 0 selected: items: "root transform/"}
+animation_layers {{1 11 960 540 0 0 1 1 0 0 0 0}
+  }
+name Text2
+xpos -710
+ypos 155
+disable {{!showFrame}}
+}
+FrameHold {
+first_frame {{curve x1 1}}
+name FrameHoldTo1s
+selected true
+xpos -710
+ypos 310
+}
+set N87e65d0 [stack 0]
+OFXuk.co.thefoundry.time.oflow_v100 {
+method Motion
+timing "Source Frame"
+timingFrame {{FrameHoldTo2s.knob.first_frame}}
+timingSpeed 0.5
+filtering Normal
+warpMode Normal
+correctLuminance false
+automaticShutterTime false
+shutterTime 0
+shutterSamples 1
+vectorDetail 0.2
+smoothness 0.5
+blockSize 6
+Tolerances 0
+weightRed 0.3
+weightGreen 0.6
+weightBlue 0.1
+showVectors false
+cacheBreaker false
+name OFlow1
+xpos -710
+ypos 467
+}
+set Nf08e28b0 [stack 0]
+Merge2 {
+inputs 2
+operation difference
+name Merge1
+xpos -391
+ypos 602
+}
+Grade {
+whitepoint 0.1
+maskChannelInput rgba.alpha
+name Grade
+xpos -391
+ypos 658
+}
+push $N87e65d0
+FrameHold {
+first_frame {{curve x1 1}}
+name FrameHoldTo2s
+xpos -1040
+ypos 358
+}
+set N8880380 [stack 0]
+push $Nf08e28b0
+Switch {
+inputs 2
+which {{OFlow1.timingFrame==int(OFlow1.timingFrame)}}
+name Switch_whole_frame_check
+label "if whole frame show it \nrather than OFlow"
+xpos -710
+ypos 550
+}
+push $N87e65d0
+FrameHold {
+first_frame {{ceil(FrameHoldTo2s.knob.first_frame) x7 1 2 x15 3}}
+name max
+xpos -1040
+ypos 550
+}
+push $N87e65d0
+FrameHold {
+first_frame {{floor(FrameHoldTo2s.knob.first_frame) x7 1 2 x15 3}}
+name min1
+xpos -1220
+ypos 526
+}
+Dissolve {
+inputs 2
+which {{FrameHoldTo2s.knob.first_frame-min1.knob.first_frame}}
+name Dissolve1
+xpos -1150
+ypos 670
+}
+push $N8880380
+Switch {
+inputs 3
+which {{method}}
+name Switch_method
+label "0= frame\n1= blend\n2= oflow"
+xpos -710
+ypos 740
+}
+Switch {
+inputs 2
+which {{parent.sanityCheck}}
+name Switch_sanity_check
+xpos -710
+ypos 899
+}
+Output {
+name Output1
+xpos -710
+ypos 971
+}
+end_group

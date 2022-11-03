@@ -1,0 +1,176 @@
+Group {
+ name ITransform_sd1
+ tile_color 0xaaffffff
+ help "ITransform_sd is like TransformMasked but uses a soft warp where the control mask is transparent. By Sean Danischevsky"
+ selected true
+ mapsize {0.15 0.15}
+ addUserKnob {20 ITransform_sd t "Like TransformMasked, but does soft warp transitions where the control mask is transparent."}
+ addUserKnob {41 matrix T Transform1.matrix}
+ addUserKnob {41 channels T IDistort1.channels}
+ addUserKnob {41 translate T Transform1.translate}
+ addUserKnob {41 rotate T Transform1.rotate}
+ addUserKnob {41 scale T Transform1.scale}
+ addUserKnob {41 skew +INVISIBLE T Transform1.skew}
+ addUserKnob {41 center T Transform1.center}
+ addUserKnob {41 invert_matrix l invert T Transform1.invert_matrix}
+ addUserKnob {41 filter_1 l filter T Transform1.filter}
+ addUserKnob {41 clamp_1 l clamp -STARTLINE T Transform1.clamp}
+ addUserKnob {41 black_outside l "black outside" -STARTLINE T Transform1.black_outside}
+ addUserKnob {41 shuttercustomoffset l "" -STARTLINE T Transform1.shuttercustomoffset}
+ addUserKnob {41 crop l "black outside" +INVISIBLE T Transform1.crop}
+ addUserKnob {41 A l "control mask" T ChannelMerge1.A}
+}
+ Input {
+  inputs 0
+  name control_mask
+  xpos 280
+  ypos -281
+  number 1
+ }
+ Dot {
+  name Dot1
+  xpos 310
+  ypos -266
+ }
+set N6431ca0 [stack 0]
+ Input {
+  inputs 0
+  name img
+  xpos -360
+  ypos -361
+ }
+ Dot {
+  name Dot2
+  xpos -330
+  ypos -346
+ }
+set N6550470 [stack 0]
+ Merge2 {
+  inputs 2
+  operation max
+  name Merge4
+  xpos -40
+  ypos -265
+ }
+push $N6550470
+ Remove {
+  name Remove1
+  xpos -200
+  ypos -335
+ }
+ CopyBBox {
+  inputs 2
+  name CopyBBox1
+  xpos -200
+  ypos -217
+ }
+ Expression {
+  expr0 x
+  expr1 y
+  name Expression1
+  xpos -200
+  ypos -199
+ }
+set N866d050 [stack 0]
+ Transform {
+  translate {{parent.Transform1.translate.main i x1047 0} {parent.Transform1.translate.main i x1047 0}}
+  rotate {{parent.Transform1.rotate.main i x1047 5.507014607}}
+  scale {{parent.Transform1.scale.main i x1047 0} {parent.Transform1.scale.main i x1047 0}}
+  center {{parent.Transform1.center.main i x1047 0} {parent.Transform1.center.main i x1047 0}}
+  filter {{Transform1.filter i}}
+  clamp {{parent.Transform1.clamp.main i}}
+  black_outside {{parent.Transform1.black_outside.main i}}
+  motionblur {{parent.Transform1.motionblur.main i}}
+  shutter {{parent.Transform1.shutter.main i}}
+  shutteroffset {{Transform1.shutteroffset i}}
+  shuttercustomoffset {{parent.Transform1.shuttercustomoffset.main i}}
+  name Transform2
+  xpos -287
+  ypos -137
+ }
+set N867bcb0 [stack 0]
+push $N867bcb0
+push $N6431ca0
+push $N6431ca0
+push $N867bcb0
+push $N866d050
+ Merge2 {
+  inputs 2
+  operation minus
+  Achannels {rgba.red rgba.green -rgba.blue -rgba.alpha}
+  Bchannels {rgba.red rgba.green -rgba.blue -rgba.alpha}
+  output {rgba.red rgba.green -rgba.blue -rgba.alpha}
+  name Merge1
+  xpos -200
+  ypos -83
+ }
+ ChannelMerge {
+  inputs 2
+  operation multiply
+  B rgba.red
+  output rgba.red
+  bbox A
+  name ChannelMerge1
+  xpos -200
+  ypos -53
+ }
+ ChannelMerge {
+  inputs 2
+  A {{{ChannelMerge1.A}}}
+  operation multiply
+  B rgba.green
+  output rgba.green
+  bbox A
+  name ChannelMerge2
+  xpos -200
+  ypos -11
+ }
+ Dot {
+  name Dot5
+  xpos -170
+  ypos 86
+ }
+push $N6550470
+add_layer {temp temp.u temp.v}
+ Copy {
+  inputs 2
+  from0 rgba.red
+  to0 temp.u
+  from1 rgba.green
+  to1 temp.v
+  name Copy1
+  xpos -360
+  ypos 203
+ }
+ IDistort {
+  uv temp
+  name IDistort1
+  xpos -360
+  ypos 305
+ }
+ Remove {
+  channels temp
+  name Remove2
+  xpos -360
+  ypos 335
+ }
+ Crop {
+  box {0 0 {input.width i} {input.height i}}
+  name Crop1
+  xpos -360
+  ypos 439
+ }
+ Output {
+  name Output1
+  xpos -360
+  ypos 504
+ }
+push $N6550470
+ Transform {
+  black_outside false
+  name Transform1
+  label "expression link to avoid st map overlay"
+  xpos -4
+  ypos -237
+ }
+end_group

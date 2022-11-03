@@ -1,0 +1,107 @@
+Group {
+ name Scroll_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ selected true
+ addUserKnob {20 User}
+ addUserKnob {41 translate T TransformControl.translate}
+ addUserKnob {41 filter T TransformControl.filter}
+ addUserKnob {41 motionblur T TransformControl.motionblur}
+ addUserKnob {41 shutter T TransformControl.shutter}
+ addUserKnob {41 shutteroffset l "shutter offset" T TransformControl.shutteroffset}
+ addUserKnob {41 shuttercustomoffset l "" -STARTLINE T TransformControl.shuttercustomoffset}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos 610
+  ypos -397
+ }
+set Nacc506a0 [stack 0]
+ Transform {
+  translate {{Transformx1.translate.x<0?Transformx1.translate.x+width:Transformx1.translate.x-width} 0}
+  center {960 540}
+  filter {{TransformControl.filter}}
+  motionblur {{TransformControl.motionblur x1089 0}}
+  shutter {{TransformControl.shutter}}
+  shutteroffset {{TransformControl.shutteroffset}}
+  shuttercustomoffset {{TransformControl.shuttercustomoffset}}
+  name TransformxSlave1
+  selected true
+  xpos 720
+  ypos -253
+ }
+push $Nacc506a0
+ Transform {
+  translate {{fmod(TransformControl.translate.main.x,width)} 0}
+  center {960 540}
+  filter {{TransformControl.filter}}
+  motionblur {{TransformControl.motionblur x1089 0}}
+  shutter {{TransformControl.shutter}}
+  shutteroffset {{TransformControl.shutteroffset}}
+  shuttercustomoffset {{TransformControl.shuttercustomoffset}}
+  name Transformx1
+  xpos 500
+  ypos -253
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  name Merge4
+  xpos 610
+  ypos -181
+ }
+set Nacc510f0 [stack 0]
+ Transform {
+  translate {0 {Transformy1.translate.y<0?Transformy1.translate.y+height:Transformy1.translate.y-height}}
+  center {960 540}
+  filter {{TransformControl.filter}}
+  motionblur {{TransformControl.motionblur x1089 0}}
+  shutter {{TransformControl.shutter}}
+  shutteroffset {{TransformControl.shutteroffset}}
+  shuttercustomoffset {{TransformControl.shuttercustomoffset}}
+  name TransformySlave1
+  xpos 720
+  ypos -85
+ }
+push $Nacc510f0
+ Transform {
+  translate {0 {fmod(TransformControl.translate.main.y,height)}}
+  center {960 540}
+  filter {{TransformControl.filter}}
+  motionblur {{TransformControl.motionblur x1089 0}}
+  shutter {{TransformControl.shutter}}
+  shutteroffset {{TransformControl.shutteroffset}}
+  shuttercustomoffset {{TransformControl.shuttercustomoffset}}
+  name Transformy1
+  xpos 500
+  ypos -133
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  name Merge5
+  xpos 500
+  ypos -61
+ }
+ Crop {
+  box {0 0 {width i} {height i}}
+  name CropOut1
+  xpos 500
+  ypos 59
+ }
+ Output {
+  name Output1
+  xpos 500
+  ypos 179
+ }
+push $Nacc506a0
+ TransformMasked {
+  translate {0 0}
+  center {{width/2} {height/2}}
+  filter Impulse
+  name TransformControl
+  xpos 280
+  ypos -338
+ }
+end_group

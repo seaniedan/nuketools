@@ -1,0 +1,493 @@
+Gizmo {
+ help " advanced luma keyer that uses misc colour space models to extract luminance"
+ tile_color 0xaaffffff
+ addUserKnob {20 User}
+ addUserKnob {41 channels T Remove1.channels}
+ addUserKnob {4 operation l model M {"Rec 709 / CIE-Yxy (default)" "Ccir 601" "Average (arithmetic mean)" Maximum Minimum Median HSV HSL YPbPr YCbCr L*a*b Outlier "Throwaway Outlier, mean remaining" "Harmonic Mean" "Geometric Mean" Distance "" ""}}
+ addUserKnob {6 invert l INVISIBLE +INVISIBLE +STARTLINE}
+ addUserKnob {6 premult l INVISIBLE +INVISIBLE +STARTLINE}
+ addUserKnob {41 lut l INVISIBLE +INVISIBLE T ColorLookup1.lut}
+ addUserKnob {19 SaturationAmount_white l saturation R 0 4}
+ SaturationAmount_white 3
+ addUserKnob {6 SaturationAmount_white_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {41 whitepoint T Grade1.whitepoint}
+ addUserKnob {41 multiply T Grade1.multiply}
+ addUserKnob {6 mixluminance l "keep luminance" +STARTLINE}
+ mixluminance true
+}
+ BackdropNode {
+  inputs 0
+  name BackdropNode1
+  label "Rec 709 / CIE-Yxy (default)\nCcir 601\nAverage (arithmetic mean)\nMaximum\nMinimum\nMedian\nHSV\nHSL\nYPbPr\nYCbCr\nL*a*b\nOutlier\nThrowaway Outlier, mean remaining\nHarmonic Mean\nGeometric Mean\nDistance"
+  xpos 2451
+  ypos 879
+  bdwidth 819
+  bdheight 594
+ }
+ BackdropNode {
+  inputs 0
+  name BackdropNode2
+  label "reconnect output\ndisable color lookup"
+  xpos -1366
+  ypos 1253
+  bdwidth 533
+  bdheight 277
+ }
+ Input {
+  inputs 0
+  name img
+  xpos -480
+  ypos -394
+ }
+set Nfb65e30 [stack 0]
+ Grade {
+  whitepoint {1 1 1 1}
+  multiply {1 1 1 1}
+  black_clamp false
+  enable_mix_luminance false
+  mix_luminance 1
+  name Grade1
+  xpos -480
+  ypos -322
+ }
+ Dot {
+  name Dot1
+  xpos -452
+  ypos -228
+ }
+set N236f5950 [stack 0]
+ Remove {
+  operation keep
+  channels rgb
+  name Remove1
+  xpos 1170
+  ypos -58
+ }
+ AddChannels {
+  channels rgb
+  name AddChannels1
+  xpos 1170
+  ypos -34
+ }
+ ColorLookup {
+  name ColorLookup1
+  xpos 1170
+  ypos 14
+  disable true
+ }
+set Nbd70990 [stack 0]
+ Expression {
+  temp_name0 gmean
+  temp_expr0 (sqrt(r*r+g*g+b*b))
+  expr0 gmean
+  expr1 gmean
+  expr2 gmean
+  name Distance
+  xpos 3040
+  ypos 350
+ }
+ Shuffle {
+  alpha red
+  name Shuffle16
+  xpos 3040
+  ypos 374
+ }
+push $Nbd70990
+ Expression {
+  temp_name0 gmean
+  temp_expr0 "pow ((r*g*b),(1/3))"
+  expr0 gmean
+  expr1 gmean
+  expr2 gmean
+  name Geometric_mean
+  xpos 2820
+  ypos 350
+ }
+ Shuffle {
+  alpha red
+  name Shuffle15
+  xpos 2820
+  ypos 374
+ }
+push $Nbd70990
+ Expression {
+  temp_name0 hmean
+  temp_expr0 3/((1/r)+(1/g)+(1/b))
+  expr0 hmean
+  expr1 hmean
+  expr2 hmean
+  name Harmonic_mean
+  xpos 2490
+  ypos 350
+ }
+ Shuffle {
+  alpha red
+  name Shuffle14
+  xpos 2490
+  ypos 374
+ }
+push $Nbd70990
+ Expression {
+  temp_name0 av
+  temp_expr0 (r+g+b)/3
+  temp_name1 hypr
+  temp_expr1 hypot(r,av)
+  temp_name2 hypg
+  temp_expr2 hypot(g,av)
+  temp_name3 hypb
+  temp_expr3 hypot(b,av)
+  expr0 "hypr>max(hypg,hypb)? (g+b)/2 : hypg>max(hypr,hypb)? (r+b)/2 :(r+g)/2"
+  name Throwaway_outlie_mean_remaining
+  xpos 2160
+  ypos 350
+ }
+ Shuffle {
+  alpha red
+  name Shuffle12
+  xpos 2160
+  ypos 374
+ }
+push $Nbd70990
+ Expression {
+  temp_name0 av
+  temp_expr0 (r+g+b)/3
+  temp_name1 hypr
+  temp_expr1 hypot(r,av)
+  temp_name2 hypg
+  temp_expr2 hypot(g,av)
+  temp_name3 hypb
+  temp_expr3 hypot(b,av)
+  expr0 "hypr<max(hypg,hypb)? r : hypg<max(hypr,hypb)? g :b"
+  name Outlier
+  xpos 1830
+  ypos 350
+ }
+ Shuffle {
+  alpha red
+  name Shuffle17
+  xpos 1830
+  ypos 374
+ }
+push $Nbd70990
+ Colorspace {
+  colorspace_out CIE-Lab
+  name Colorspace5
+  label "\[value colorspace_out]"
+  xpos 1610
+  ypos 314
+ }
+ Shuffle {
+  alpha red
+  name Shuffle5
+  xpos 1610
+  ypos 374
+ }
+push $Nbd70990
+ Colorspace {
+  colorspace_out YCbCr
+  name Colorspace4
+  label "\[value colorspace_out]"
+  xpos 1500
+  ypos 314
+ }
+ Shuffle {
+  alpha red
+  name Shuffle4
+  xpos 1500
+  ypos 374
+ }
+push $Nbd70990
+ Colorspace {
+  colorspace_out YPbPr
+  name Colorspace3
+  label "\[value colorspace_out]"
+  xpos 1390
+  ypos 314
+ }
+ Shuffle {
+  alpha red
+  name Shuffle1
+  xpos 1390
+  ypos 374
+ }
+push $Nbd70990
+ Colorspace {
+  colorspace_out HSL
+  name Colorspace2
+  label "\[value colorspace_out]"
+  xpos 1280
+  ypos 314
+ }
+ Shuffle {
+  alpha blue
+  name Shuffle3
+  xpos 1280
+  ypos 374
+ }
+push $Nbd70990
+ Colorspace {
+  colorspace_out HSV
+  name Colorspace1
+  label "\[value colorspace_out]"
+  xpos 1170
+  ypos 314
+ }
+ Shuffle {
+  alpha blue
+  name Shuffle2
+  xpos 1170
+  ypos 374
+ }
+push $Nbd70990
+ Expression {
+  temp_name0 minn
+  temp_expr0 min(r,g,b)
+  temp_name1 maxx
+  temp_expr1 max(r,g,b)
+  temp_name2 mid
+  temp_expr2 "r>minn&&r<maxx?r: g>minn&&g<maxx?g: b>minn&&b<maxx?b:r==g?r:r==b?b:b"
+  expr0 mid
+  expr1 mid
+  expr2 mid
+  name Median
+  xpos 950
+  ypos 350
+ }
+ Shuffle {
+  alpha red
+  name Shuffle13
+  xpos 950
+  ypos 374
+ }
+push $Nbd70990
+ Invert {
+  name Invert1
+  xpos 730
+  ypos 320
+ }
+ Saturation {
+  saturation 0
+  mode Maximum
+  name MIN
+  xpos 730
+  ypos 366
+ }
+ Invert {
+  name Invert2
+  xpos 730
+  ypos 392
+ }
+ Shuffle {
+  alpha red
+  name Shuffle10
+  xpos 730
+  ypos 446
+ }
+push $Nbd70990
+ Saturation {
+  saturation 0
+  mode Maximum
+  name MAX
+  xpos 510
+  ypos 398
+ }
+ Shuffle {
+  alpha red
+  name Shuffle9
+  xpos 510
+  ypos 422
+ }
+push $Nbd70990
+ Saturation {
+  saturation 0
+  mode Average
+  name ArtithmeticMean
+  xpos 290
+  ypos 398
+ }
+ Shuffle {
+  alpha red
+  name Shuffle8
+  xpos 290
+  ypos 422
+ }
+push $Nbd70990
+ Saturation {
+  saturation 0
+  mode "Ccir 601"
+  name CCIR
+  xpos -40
+  ypos 398
+ }
+ Shuffle {
+  alpha red
+  name Shuffle6
+  xpos -40
+  ypos 422
+ }
+push $Nbd70990
+ Saturation {
+  saturation 0
+  name REC709
+  xpos -260
+  ypos 398
+ }
+ Shuffle {
+  alpha red
+  name Shuffle7
+  xpos -260
+  ypos 422
+ }
+ Switch {
+  inputs 16
+  which {{parent.operation}}
+  name Switch1
+  xpos 1940
+  ypos 1118
+ }
+set N95edda0 [stack 0]
+ Clamp {
+  channels alpha
+  name Clamp1
+  xpos 1940
+  ypos 1448
+ }
+ Invert {
+  channels alpha
+  name Invert3
+  xpos -260
+  ypos 1832
+  disable {{!parent.invert}}
+ }
+push $N236f5950
+ Copy {
+  inputs 2
+  from0 rgba.alpha
+  to0 rgba.alpha
+  name Copy1
+  xpos -480
+  ypos 1832
+ }
+ Premult {
+  name Premult1
+  xpos -480
+  ypos 2102
+  disable {{!parent.premult i}}
+ }
+push $Nfb65e30
+ Reformat {
+  type "to box"
+  box_width 1
+  box_height 1
+  box_fixed true
+  name Reformat1
+  xpos -1690
+  ypos 1598
+ }
+ Saturation {
+  saturation 0
+  name REC1
+  xpos -1580
+  ypos 1672
+ }
+push $N95edda0
+ Shuffle {
+  red alpha
+  green alpha
+  blue alpha
+  name Shuffle11
+  xpos -920
+  ypos 1262
+ }
+set N94e4500 [stack 0]
+push $N94e4500
+push $N236f5950
+ Merge2 {
+  inputs 2
+  operation from
+  name Merge5
+  xpos -1140
+  ypos 1262
+ }
+ Grade {
+  white {{parent.SaturationAmount_white.r} {parent.SaturationAmount_white.g} {parent.SaturationAmount_white.b} {parent.SaturationAmount_white.a}}
+  black_clamp false
+  name SaturationAmount
+  xpos -1140
+  ypos 1310
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  name Merge6
+  xpos -1140
+  ypos 1454
+ }
+ Grade {
+  multiply {{Grade1.multiply} {Grade1.multiply} {Grade1.multiply} 1}
+  reverse true
+  black_clamp false
+  enable_mix_luminance false
+  mix_luminance 1
+  name Grade2
+  xpos -1140
+  ypos 1574
+  disable true
+ }
+set N929f340 [stack 0]
+ Reformat {
+  type "to box"
+  box_width 1
+  box_height 1
+  box_fixed true
+  name Reformat2
+  xpos -1470
+  ypos 1622
+ }
+ Saturation {
+  saturation 0
+  name REC2
+  xpos -1360
+  ypos 1672
+ }
+ Merge2 {
+  inputs 2
+  operation divide
+  name Merge1
+  xpos -1360
+  ypos 1698
+ }
+ Reformat {
+  type "to box"
+  box_width {{img.width}}
+  box_height {{img.height}}
+  box_fixed true
+  filter Impulse
+  name Reformat3
+  xpos -1360
+  ypos 1724
+ }
+push $N929f340
+ Merge2 {
+  inputs 2
+  operation multiply
+  bbox B
+  mix {{parent.mixluminance}}
+  name Merge2
+  xpos -1140
+  ypos 1724
+ }
+set N93bd4b00 [stack 0]
+ Colorspace {
+  colorspace_out sRGB
+  name Colorspace6
+  xpos -1140
+  ypos 2240
+ }
+ Output {
+  name Output1
+  xpos -1140
+  ypos 2390
+ }
+push $N93bd4b00
+end_group

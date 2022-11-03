@@ -1,0 +1,154 @@
+Group {
+ name Grain_sd1
+ tile_color 0xaaffffff
+ help "Adds synthetic grain. Push \"presets\" to get predefined types of grain, these are the correct size for 2K scans.\n\nYou can also adjust the sliders to match a sample piece of grain. Find a sample with a rather constant background, blur it to remove the grain, and use as input to this. View with a wipe in the viewer so you can make a match. It helps to view and match each of the red, green, blue separately."
+ selected true
+ mapsize {0.15 0.15}
+ addUserKnob {20 Grain_sd}
+ addUserKnob {3 seed t "Change this value to make different instances of this operator produce different noise"}
+ seed 914
+ addUserKnob {26 "" l "@b;Size"}
+ addUserKnob {14 red_size l red R 0 100}
+ red_size 2.3
+ addUserKnob {14 green_size l green R 0 100}
+ green_size 1.8
+ addUserKnob {14 blue_size l blue R 0 100}
+ blue_size 2.8
+ addUserKnob {7 red_i l INVISIBLE +INVISIBLE}
+ red_i 0.6
+ addUserKnob {7 green_i l INVISIBLE +INVISIBLE}
+ green_i 0.6
+ addUserKnob {7 blue_i l INVISIBLE +INVISIBLE}
+ blue_i 0.3
+ addUserKnob {26 "" l "@b;Intensity"}
+ addUserKnob {18 blacks t "Amount of grain to add everywhere"}
+ blacks {0.003500000108 0.003500000108 0.006000000052}
+ addUserKnob {6 blacks_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {18 whites}
+ whites {0.1099999994 0.1099999994 0.1099999994}
+ addUserKnob {6 whites_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {18 clampMin l "clamp blacks" R -0.006 1}
+ clampMin {-0.006 -0.006 -0.006}
+ addUserKnob {6 clampMin_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {41 minimum_enable l enable -STARTLINE T Clamp2.minimum_enable}
+ addUserKnob {26 "" l "@b;Mask"}
+ addUserKnob {6 maskgrain l "Apply only through alpha" -STARTLINE}
+ maskgrain true
+ addUserKnob {41 maskinvert l "Invert alpha" -STARTLINE T Copy1.invert_mask}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos 0
+  ypos -516
+ }
+set Nb016e20 [stack 0]
+ Noise {
+  output {rgba.red -rgba.green -rgba.blue -rgba.alpha}
+  cliptype none
+  replace true
+  size {{parent.red_size.w i} {parent.red_size.h i}}
+  zoffset {{frame+seed+red_i/2 i}}
+  octaves 4
+  nyquist false
+  gamma 1
+  rotate {{fmod(t,360)+.5 i}}
+  name red
+  xpos 445
+  ypos -416
+ }
+ Noise {
+  output {-rgba.red rgba.green -rgba.blue -rgba.alpha}
+  cliptype none
+  replace true
+  size {{parent.green_size.w i} {parent.green_size.h i}}
+  zoffset {{frame+1082*seed+green_i/2 i}}
+  octaves 4
+  nyquist false
+  gamma 1
+  rotate {{fmod(t,360)+.5 i}}
+  name green
+  xpos 445
+  ypos -386
+ }
+ Noise {
+  output {-rgba.red -rgba.green rgba.blue -rgba.alpha}
+  cliptype none
+  replace true
+  size {{parent.blue_size.w i} {parent.blue_size.h i}}
+  zoffset {{frame+1753*seed+blue_i/2.0 i}}
+  octaves 4
+  nyquist false
+  gamma 1
+  rotate {{fmod(t,360)+.5 i}}
+  name blue
+  xpos 445
+  ypos -356
+ }
+ Grade {
+  white 2
+  add -1
+  black_clamp false
+  name Grade1
+  xpos 445
+  ypos -242
+ }
+push $Nb016e20
+ Grade {
+  white {{parent.whites} {parent.whites} {parent.whites} 1}
+  add {{parent.blacks} {parent.blacks} {parent.blacks} 1}
+  name Grade2
+  selected true
+  xpos 267
+  ypos -246
+ }
+ Merge2 {
+  inputs 2
+  operation multiply
+  name Merge3
+  xpos 267
+  ypos -57
+ }
+push $Nb016e20
+ Merge2 {
+  inputs 2
+  operation plus
+  bbox B
+  Achannels rgb
+  name Merge1
+  xpos 267
+  ypos 150
+ }
+ Clamp {
+  channels rgb
+  minimum {{parent.clampMin.r i} {parent.clampMin.g i} {parent.clampMin.b i} -0.006}
+  maximum_enable false
+  name Clamp2
+  xpos 267
+  ypos 168
+ }
+set Nbb56690 [stack 0]
+push $Nb016e20
+ Copy {
+  inputs 2
+  channels rgb
+  bbox B
+  maskChannelInput rgba.alpha
+  name Copy1
+  xpos 0
+  ypos 315
+ }
+push $Nbb56690
+ Switch {
+  inputs 2
+  which {{maskgrain i}}
+  name Switch1
+  xpos 0
+  ypos 423
+ }
+ Output {
+  name Output1
+  xpos 0
+  ypos 489
+ }
+end_group

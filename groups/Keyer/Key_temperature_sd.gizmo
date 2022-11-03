@@ -1,0 +1,46 @@
+Group {
+ name Key_temperature_sd1
+ help "Copyright 2022 Sean Danischevsky"
+ tile_color 0xaaffffff
+ selected true
+ addUserKnob {20 User}
+ addUserKnob {4 type M {warm cool}}
+ addUserKnob {41 range T Keyer1.range}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos 574
+  ypos -711
+ }
+set N49f25d00 [stack 0]
+ Colorspace {
+  illuminant_in F2
+  colorspace_out CIE-Lab
+  illuminant_out F2
+  name Colorspace3
+  xpos 735
+  ypos -558
+ }
+ Keyer {
+  operation "blue keyer"
+  name Keyer1
+  label "for the knob"
+  xpos 735
+  ypos -482
+ }
+push $N49f25d00
+ Copy {
+  inputs 2
+  from0 rgba.alpha
+  to0 rgba.alpha
+  name Copy1
+  xpos 574
+  ypos -392
+ }
+ Output {
+  name Output1
+  xpos 574
+  ypos -247
+ }
+end_group

@@ -1,0 +1,402 @@
+Group {
+name FrameMedian_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+help "Click Add. The frame will be added to the list and processed.\n- Continue until you check all the footage. Click Remove to remove unwanted frames or Remove All to start again from scratch. Disable sanity check when finished.\n-  Enabling \"show frames numbers\" displays the equivalent frame on the original footage. This makes it easy to adjust specific frames."
+selected true
+addUserKnob {20 FrameMedian_sd t "by Sean Danischevsky 2019"}
+addUserKnob {4 chooseStyle l choose -STARTLINE M {"bad frames" "good frames" "" "" "" "" "" ""}}
+chooseStyle "good frames"
+addUserKnob {1 chosenFrames l frames t "Frames to use (if good) or not (if bad)"}
+addUserKnob {22 update_list l update -STARTLINE T "#set up the internal group structure\n\ndef setup():\n    #set the nodes inside the group\n    n.begin()\n\n    #set number of Frames: \n    #min1, max 20\n    bl= nuke.toNode('BlinkScript1')\n    frames= max(1, min(len(aFramesNum), 20))\n    bl\['frameMedian_Frames'].setValue(frames)\n\n    #set frameholds\n    for i, f in enumerate(aFramesNum, 1):\n        #print \"i,f\",i,f\n        fh= nuke.toNode('FrameHold%d'% i)\n        fh\['first_frame'].setValue(f)\n\n    #set sanitycheck\n    for i, f in enumerate(range(0, 20), 1):\n        #print \"i,f\",i,f\n        rem=nuke.toNode('Remove%d'%i)\n        if f< frames:\n            rem\['disable'].setValue(True)\n        else:\n            rem\['disable'].setValue(False)\n    n.end()\n\n\nn= nuke.thisNode()\n\n#convert list of frames to integers\nframes= n\['chosenFrames'].value()\naFramesNum= nuke.FrameRanges(frames).toFrameList() or \[]\nprint 'aFramesNum', aFramesNum\n\nif n\['chooseStyle'].getValue(): \n    print 'good frames'\n    #check the number of frames\n    #as there is a 20 frame limit\n    if len(aFramesNum)<=20:\n        setup()\n    else:\n        nuke.message(\"Only 20 frames can be selected: please remove %d frames before updating range.\"%(len(aFramesNum)-20))\nelse: \n    print 'bad frames'\n    allFrames= range(n.input(0).firstFrame()\n, n.input(0).lastFrame()+ 1)\n    aFramesNum= list(set(allFrames)- set(aFramesNum))\n    if len(aFramesNum)<=20:\n        setup()\n    else:\n        nuke.message(\"Only 20 good frames can be selected: please add %d bad frames before updating range.\"%(len(aFramesNum)-20))\n\n"}
+addUserKnob {22 btToggle l "Toggle Frame  " t "Remove current frame from the list" T "n = nuke.thisNode()\n\n#convert list of frames to integers\nframes= n\['chosenFrames'].value()\naFramesNum= nuke.FrameRanges(frames).toFrameList() or \[]\n\ncurrentFrame= nuke.frame()\nprint 'currentFrame', currentFrame\n\nif n\['chooseStyle'].value():\n    #good frames\n    print 'good frames'\n    #list holds frames we want to use. Limit = 20.\n    if currentFrame in aFramesNum:\n        #remove frame from list\n        aFramesNum.remove(currentFrame)\n    else:\n        #we want to add a frame, but first\n        #check the number of frames \n        #as there is a 20 frame limit\n        if len(aFramesNum) <= 20:\n            #add frame to list\n            aFramesNum.append(currentFrame)\n            n\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\n        else:\n            nuke.message(\"Only 20 frames can be selected: remove another before adding this frame!\")\n\nelse:\n    #list is of frames we don't want to use\n    #remainder must be <=20\n    if currentFrame in aFramesNum:\n        #we want to remove from list. \n        allFrames= range(n.firstFrame(), n.lastFrame()+ 1)\n        aFramesNumWanted= list(set(allFrames)- set(aFramesNum))\n        if len(aFramesNumWanted)<=20:\n            #update list\n            n\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\n        else:\n            nuke.message(\"Only 20 frames can be used selected: add another before removing this frame!\")\n    else:\n        #add to list\n            aFramesNum.append(currentFrame)\n  \n\n      \nnuke.thisNode()\['update_list'].execute()\n" +STARTLINE}
+addUserKnob {22 onXs T "n = nuke.thisNode()\nn\['chooseStyle'].setValue('good frames')\n\naFramesNum= range(int(n\['startingat'].value()), int(n.lastFrame()+ 1), int(n\['x'].value()))\nn\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\n# Execute\nnuke.thisNode()\['update_list'].execute()" +STARTLINE}
+addUserKnob {3 x -STARTLINE}
+x 10
+addUserKnob {3 startingat l "starting at" -STARTLINE}
+startingat 1
+addUserKnob {22 btAddAll l "  Add All  " t "Add all frames to the list" T "#frame median code\n\ndef take_n(low, up, leng):\n    step= (up+ 1- low)/ float(leng)\n    initial_list= \[low+ i* step for i in xrange(leng)]\n    last= initial_list\[-1]\n    last_div= (up+ 1- last)/ 2.0\n    return \[int(i+ last_div) for i in initial_list]\n\n#setup\nn= nuke.thisNode()\nsf, ef= n.input(0).firstFrame(), n.input(0).lastFrame()\n\n#print 'sf,ef' ,sf,ef\n#new range\naFramesNum= range(sf, ef+ 1)\n\nif len(aFramesNum) <=20:\n    #add all\n    n\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(aFramesNum))))\nelse:\n    #take 20 evenly spaced frames\n    n\['chosenFrames'].setValue(str(nuke.FrameRanges(sorted(take_n(sf, ef, 20)))))\n    \n     \n# Execute\nnuke.thisNode()\['update_list'].execute()\n\n\n" +STARTLINE}
+addUserKnob {22 btRemoveAll l "  Remove All  " t "Remove all frames from the list" -STARTLINE T "n = nuke.thisNode()\nn\['chosenFrames'].setValue('')\n\n# Execute\nnuke.thisNode()\['update_list'].execute()"}
+addUserKnob {6 sanityCheck l "sanity check" t "Use to mix back result against the original footage to check for any slippage." +STARTLINE}
+addUserKnob {7 fontsize l "font size" R 0 5}
+fontsize 1
+addUserKnob {20 endGroup n -1}
+addUserKnob {20 "" l "Kernel Parameters"}
+addUserKnob {26 "" l "Local GPU:"}
+addUserKnob {26 gpuName l "" +STARTLINE}
+addUserKnob {26 "" l " "}
+addUserKnob {41 useGPUIfAvailable l "Use GPU if available" T BlinkScript1.useGPUIfAvailable}
+addUserKnob {41 vectorize l "Vectorize on CPU" T BlinkScript1.vectorize}
+addUserKnob {41 rebuild T BlinkScript1.rebuild}
+addUserKnob {41 channels T BlinkScript1.channels}
+addUserKnob {41 specifyChannels l "Specify channels" T BlinkScript1.specifyChannels}
+addUserKnob {41 output l "Output Image" T BlinkScript1.output}
+addUserKnob {26 ""}
+addUserKnob {26 kernel_knob_group l "" +STARTLINE}
+addUserKnob {41 frameMedian_Frames l Frames T BlinkScript1.frameMedian_Frames}
+addUserKnob {26 "" l " "}
+addUserKnob {41 publishButton l Publish T BlinkScript1.publishButton}
+addUserKnob {41 kernelName T BlinkScript1.kernelName}
+addUserKnob {41 protectKernelWhenPublishing l "Protect kernel" T BlinkScript1.protectKernelWhenPublishing}
+addUserKnob {26 ""}
+addUserKnob {41 format T BlinkScript1.format}
+addUserKnob {41 specifiedFormat l "Specify output format" T BlinkScript1.specifiedFormat}
+addUserKnob {41 rebuild_finalise T BlinkScript1.rebuild_finalise}
+addUserKnob {41 ForcePanelExpansion T BlinkScript1.ForcePanelExpansion}
+addUserKnob {26 "" l " "}
+}
+Input {
+inputs 0
+name Input1
+xpos 1710
+ypos -60
+}
+Text2 {
+font_size_toolbar 100
+font_width_toolbar 100
+font_height_toolbar 100
+message "frame \[frame]"
+old_message {{102 114 97 109 101 32 50 49 49 50}
+  }
+old_expression_markers {{6 9}
+  }
+box {0 0 1000 200}
+yjustify bottom
+transforms {{0 2}
+  }
+cursor_position 13
+global_font_scale {{parent.fontsize}}
+scale {1 1}
+cursor_initialised true
+autofit_bbox false
+initial_cursor_position {{0 1080}
+  }
+group_animations {{0} imported: 0 selected: items: "root transform/"}
+animation_layers {{1 11 960 540 0 0 1 1 0 0 0 0}
+  }
+enable_background true
+name Text2
+xpos 1710
+ypos 132
+disable {{!parent.sanityCheck}}
+}
+Dot {
+name Dot1
+xpos 1748
+ypos 300
+}
+set N14bebdb0 [stack 0]
+FrameHold {
+first_frame 3154
+name FrameHold20
+xpos 2954
+ypos 481
+}
+set N1666f500 [stack 0]
+Remove {
+name Remove20
+xpos 2954
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2992
+name FrameHold19
+xpos 2806
+ypos 481
+}
+set N15b26880 [stack 0]
+Remove {
+name Remove19
+xpos 2806
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2830
+name FrameHold18
+xpos 2660
+ypos 481
+}
+set N14c30380 [stack 0]
+Remove {
+name Remove18
+xpos 2660
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2669
+name FrameHold17
+xpos 2514
+ypos 481
+}
+set N1944a590 [stack 0]
+Remove {
+name Remove17
+xpos 2514
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2507
+name FrameHold16
+xpos 2367
+ypos 481
+}
+set N163a24c0 [stack 0]
+Remove {
+name Remove16
+xpos 2367
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2345
+name FrameHold15
+xpos 2221
+ypos 481
+}
+set N1c9378d0 [stack 0]
+Remove {
+name Remove15
+xpos 2221
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2183
+name FrameHold14
+xpos 2075
+ypos 481
+}
+set N16cd85e0 [stack 0]
+Remove {
+name Remove14
+xpos 2075
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 2022
+name FrameHold13
+xpos 1928
+ypos 481
+}
+set N1ca8adb0 [stack 0]
+Remove {
+name Remove13
+xpos 1928
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 1860
+name FrameHold12
+xpos 1782
+ypos 481
+}
+set N1a011200 [stack 0]
+Remove {
+name Remove12
+xpos 1782
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 1698
+name FrameHold11
+xpos 1636
+ypos 481
+}
+set Neecaa90 [stack 0]
+Remove {
+name Remove11
+xpos 1636
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 1537
+name FrameHold10
+xpos 1490
+ypos 481
+}
+set Ne970ae0 [stack 0]
+Remove {
+name Remove10
+xpos 1490
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 1375
+name FrameHold9
+xpos 1342
+ypos 481
+}
+set N14dd9570 [stack 0]
+Remove {
+name Remove9
+xpos 1342
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 1213
+name FrameHold8
+xpos 1196
+ypos 481
+}
+set N16d6dc50 [stack 0]
+Remove {
+name Remove8
+xpos 1196
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 1052
+name FrameHold7
+xpos 1050
+ypos 481
+}
+set N16c0b6a0 [stack 0]
+Remove {
+name Remove7
+xpos 1050
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 890
+name FrameHold6
+xpos 903
+ypos 481
+}
+set N19ff84b0 [stack 0]
+Remove {
+name Remove6
+xpos 903
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 728
+name FrameHold5
+xpos 757
+ypos 481
+}
+set N16d69ce0 [stack 0]
+Remove {
+name Remove5
+xpos 757
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 566
+name FrameHold4
+xpos 609
+ypos 481
+}
+set N16c8f700 [stack 0]
+Remove {
+name Remove4
+xpos 609
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 405
+name FrameHold3
+xpos 463
+ypos 481
+}
+set N1cab9850 [stack 0]
+Remove {
+name Remove3
+xpos 463
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 243
+name FrameHold2
+xpos 317
+ypos 481
+}
+set N1c96f2e0 [stack 0]
+Remove {
+name Remove2
+xpos 317
+ypos 845
+}
+push $N14bebdb0
+FrameHold {
+first_frame 81
+name FrameHold1
+xpos 170
+ypos 481
+}
+set N11ec2600 [stack 0]
+Remove {
+name Remove1
+xpos 170
+ypos 845
+disable true
+}
+ContactSheet {
+inputs 20
+width {{width*columns/4}}
+height {{height*rows/4}}
+rows 5
+roworder TopBottom
+name ContactSheet1
+xpos 2920
+ypos 1092
+}
+push $N1666f500
+push $N15b26880
+push $N14c30380
+push $N1944a590
+push $N163a24c0
+push $N1c9378d0
+push $N16cd85e0
+push $N1ca8adb0
+push $N1a011200
+push $Neecaa90
+push $Ne970ae0
+push $N14dd9570
+push $N16d6dc50
+push $N16c0b6a0
+push $N19ff84b0
+push $N16d69ce0
+push $N16c8f700
+push $N1cab9850
+push $N1c96f2e0
+push $N11ec2600
+BlinkScript {
+inputs 20
+ProgramGroup 1
+KernelDescription "2 \"frameMedian\" iterate componentWise 6b8661ce6f0b5f97a46e27fdace74e38d536b6436e7c727733372f855c791fef 21 \"src1\" Read Point \"src2\" Read Point \"src3\" Read Point \"src4\" Read Point \"src5\" Read Point \"src6\" Read Point \"src7\" Read Point \"src8\" Read Point \"src9\" Read Point \"src10\" Read Point \"src11\" Read Point \"src12\" Read Point \"src13\" Read Point \"src14\" Read Point \"src15\" Read Point \"src16\" Read Point \"src17\" Read Point \"src18\" Read Point \"src19\" Read Point \"src20\" Read Point \"dst\" Write Point 1 \"Frames\" Int 1 AQAAAA== 1 \"frames\" 1 1 0"
+kernelSource "kernel frameMedian : ImageComputationKernel<eComponentWise>\n\{\n  Image<eRead, eAccessPoint, eEdgeClamped> src1; \n  Image<eRead, eAccessPoint, eEdgeClamped> src2;\n  Image<eRead, eAccessPoint, eEdgeClamped> src3;  \n  Image<eRead, eAccessPoint, eEdgeClamped> src4;\n  Image<eRead, eAccessPoint, eEdgeClamped> src5;\n  Image<eRead, eAccessPoint, eEdgeClamped> src6;\n  Image<eRead, eAccessPoint, eEdgeClamped> src7; \n  Image<eRead, eAccessPoint, eEdgeClamped> src8;\n  Image<eRead, eAccessPoint, eEdgeClamped> src9; \n  Image<eRead, eAccessPoint, eEdgeClamped> src10;\n  Image<eRead, eAccessPoint, eEdgeClamped> src11; \n  Image<eRead, eAccessPoint, eEdgeClamped> src12;\n  Image<eRead, eAccessPoint, eEdgeClamped> src13;  \n  Image<eRead, eAccessPoint, eEdgeClamped> src14;\n  Image<eRead, eAccessPoint, eEdgeClamped> src15;\n  Image<eRead, eAccessPoint, eEdgeClamped> src16;\n  Image<eRead, eAccessPoint, eEdgeClamped> src17; \n  Image<eRead, eAccessPoint, eEdgeClamped> src18;\n  Image<eRead, eAccessPoint, eEdgeClamped> src19; \n  Image<eRead, eAccessPoint, eEdgeClamped> src20;\n  Image<eWrite> dst;\n  param:\n    int frames;\n  void define() \{\n    defineParam(frames, \"Frames\", 1);\n  \}\n  void process() \{\n    float values\[] = \{src1(),src2(),src3(),src4(),src5(),src6(),src7(),src8(),src9(),src10(),src11(),src12(),src13(),src14(),src15(),src16(),src17(),src18(),src19(),src20(),\};\n    float outputS = median(values,  frames);\n    dst() = outputS;\n   \}\n\};"
+rebuild ""
+rebuild_finalise ""
+name BlinkScript1
+xpos 2150
+ypos 1201
+}
+Switch {
+inputs 2
+which {{parent.sanityCheck}}
+name Switch_sanity_check
+xpos 2150
+ypos 1452
+}
+Output {
+name Output1
+xpos 2150
+ypos 1572
+}
+end_group

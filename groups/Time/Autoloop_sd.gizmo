@@ -1,0 +1,62 @@
+Group {
+ name Autoloop_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ selected true
+ addUserKnob {20 AutoFrameLoop}
+ addUserKnob {7 relativeOverlap l "relative overlap" R 0 0.5}
+ relativeOverlap 0.5
+ addUserKnob {3 overlap l "overlap frames" t "length of overlap of frames - from 0 to half the length of input clip"}
+ overlap {{floor((last_frame-first_frame+1)*relativeOverlap)}}
+ addUserKnob {3 loopLength l "loop length" t "Total final length of loop. For information only! Don't change!"}
+ loopLength {{"last_frame- first_frame+ 1- overlap"}}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos 500
+  ypos -13
+ }
+ FrameHold {
+  first_frame {{"fmod(frame,       (last_frame-first_frame+1))"}}
+  name FrameHold_loop_input
+  xpos 500
+  ypos 22
+ }
+ Dot {
+  name Dot1
+  xpos 539
+  ypos 120
+ }
+set N241e7660 [stack 0]
+push $N241e7660
+ TimeOffset {
+  time_offset {{-((last_frame-first_frame+1)-overlap) i x7 -11}}
+  time ""
+  name TimeOffsetSTART
+  xpos 390
+  ypos 227
+ }
+set N23fb1cf0 [stack 0]
+ Dissolve {
+  inputs 2
+  which {{"t<overlap+1?\nsmoothstep(0,overlap+1,t)\n:\n\n1" x5 2}}
+  name Dissolve2
+  xpos 500
+  ypos 334
+ }
+ FrameHold {
+  first_frame {{"fmod(frame,    last_frame- first_frame+ 1- overlap)"}}
+  name FrameHold_loop_output
+  selected true
+  xpos 500
+  ypos 430
+ }
+ Output {
+  name Output1
+  xpos 509
+  ypos 525
+ }
+push $N23fb1cf0
+push 0
+end_group

@@ -1,0 +1,149 @@
+Group {
+ name Compare_sd1
+ tile_color 0xaaffffff
+ help "Compare two images. By Sean Danischevsky 2004...2011...2015...2020..."
+ label "Range: \[value FrameRange1.first_frame]-\[value FrameRange1.last_frame]"
+ selected true
+ addUserKnob {20 Compare_sd t "by Sean Danischevsky 2017+\nsean@danischevsky.com"}
+ addUserKnob {4 range t "Set frame frame range to minimum of inputs, maximum or don't set." M {Min Max ""}}
+ range Max
+ addUserKnob {4 method M {difference emboss anaglyph ""}}
+ addUserKnob {20 differencegrade l "difference grade" n 1}
+ addUserKnob {41 gamma_1 l gamma T GradeGamma1.gamma}
+ addUserKnob {41 white_1 l gain T GradeExposure1.white}
+ addUserKnob {20 endGroup n -1}
+ addUserKnob {20 embossgrade l "emboss grade" n 1}
+ addUserKnob {41 gamma T GradeGamma.gamma}
+ addUserKnob {41 white l gain T GradeExposure.white}
+ addUserKnob {20 endGroup_1 l endGroup n -1}
+ addUserKnob {22 comparesequence l "Analyse Input Sequences" t "compares a sequence" T "try:\n    import seanscripts.arrange_by_sd\n    nodes=\[nuke.thisNode().input(0), nuke.thisNode().input(1)]\n    seanscripts.arrange_by_sd.compare_seqs(nodes=nodes)\nexcept NameError:\n    nuke.alert(\"Nothing to compare! Please attach a Read Node directly to each input and try again.\")\nexcept TypeError:\n    nuke.alert(\"Nothing to compare! Please attach a Read Node directly to each input and try again.\") \n\n" +STARTLINE}
+ addUserKnob {26 metadatalabel l metadata}
+ addUserKnob {41 metadata l "" -STARTLINE T CompareMetaData1.metadata}
+}
+ Input {
+  inputs 0
+  name A
+  xpos 400
+  ypos -634
+ }
+set Nb54a480 [stack 0]
+ Saturation {
+  saturation 0
+  name Saturation1
+  xpos 620
+  ypos -372
+ }
+ Grade {
+  white {1 0 0 1}
+  black_clamp false
+  name Grade2
+  xpos 620
+  ypos -346
+ }
+push $Nb54a480
+ Input {
+  inputs 0
+  name B
+  xpos 610
+  ypos -634
+  number 1
+ }
+ CompareMetaData {
+  inputs 2
+  name CompareMetaData1
+  xpos 610
+  ypos -586
+ }
+set Nb733d30 [stack 0]
+ Saturation {
+  saturation 0
+  name Saturation2
+  xpos 730
+  ypos -370
+ }
+ Grade {
+  white {0 1 0 1}
+  black_clamp false
+  name Grade5
+  xpos 730
+  ypos -346
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  name Merge26
+  xpos 730
+  ypos -274
+ }
+push $Nb733d30
+push $Nb54a480
+ Invert {
+  name Invert1
+  xpos 400
+  ypos -399
+ }
+ Dissolve {
+  inputs 2
+  which 0.5
+  name Dissolve1
+  xpos 400
+  ypos -328
+ }
+ Grade {
+  gamma 0.2
+  black_clamp false
+  name GradeGamma
+  xpos 400
+  ypos -290
+ }
+ Grade {
+  white 7
+  black_clamp false
+  name GradeExposure
+  xpos 400
+  ypos -264
+ }
+push $Nb733d30
+push $Nb54a480
+ Merge2 {
+  inputs 2
+  operation difference
+  name Merge1
+  selected true
+  xpos 180
+  ypos -394
+ }
+ Grade {
+  gamma 2
+  black_clamp false
+  name GradeGamma1
+  xpos 180
+  ypos -178
+ }
+ Grade {
+  black_clamp false
+  name GradeExposure1
+  xpos 180
+  ypos -152
+ }
+ Switch {
+  inputs 3
+  which {{parent.method}}
+  name SwitchMethod
+  xpos 400
+  ypos -57
+ }
+ FrameRange {
+  first_frame {{range==0?max(A.first_frame,B.first_frame):min(A.first_frame,B.first_frame)}}
+  last_frame {{"range==0?min(A.last_frame,B.last_frame)   : max(A.first_frame,B.first_frame,A.last_frame,B.last_frame)"}}
+  time ""
+  name FrameRange1
+  xpos 400
+  ypos -31
+ }
+ Output {
+  name Output1
+  xpos 400
+  ypos 39
+ }
+end_group

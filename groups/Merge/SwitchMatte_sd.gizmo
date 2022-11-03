@@ -1,0 +1,72 @@
+Group {
+ name SwitchMatte_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ inputs 2
+ mapsize {0.15 0.15}
+ addUserKnob {20 User}
+ addUserKnob {41 from0 l "Alpha from" T Copy2.from0}
+ addUserKnob {41 invertAlpha l invert T Invert1.invertAlpha}
+ addUserKnob {41 bbox l "Set BBox to " T Copy2.bbox}
+ addUserKnob {6 premultiply +STARTLINE}
+ premultiply true
+}
+ Input {
+  inputs 0
+  name matte
+  xpos -200
+  ypos 86
+  number 1
+ }
+ AddChannels {
+  channels alpha
+  name AddChannels2
+  xpos -200
+  ypos 127
+ }
+ Input {
+  inputs 0
+  name image
+  xpos -440
+  ypos 24
+ }
+set Nf449ade0 [stack 0]
+ AddChannels {
+  channels alpha
+  name AddChannels1
+  xpos -440
+  ypos 63
+ }
+ Copy {
+  inputs 2
+  from0 rgba.alpha
+  to0 rgba.alpha
+  bbox A
+  name Copy2
+  xpos -440
+  ypos 207
+ }
+ Invert {
+  channels alpha
+  name Invert1
+  xpos -440
+  ypos 255
+  disable {{!invertAlpha i}}
+  addUserKnob {20 User}
+  addUserKnob {6 invertAlpha l invert -STARTLINE}
+ }
+ Premult {
+  name Premult1
+  xpos -440
+  ypos 294
+  disable {{!premultiply i}}
+ }
+set Nf44b8eb0 [stack 0]
+ Output {
+  name Output1
+  xpos -440
+  ypos 438
+ }
+push $Nf44b8eb0
+push $Nf449ade0
+end_group

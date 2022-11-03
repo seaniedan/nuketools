@@ -1,0 +1,53 @@
+Group {
+ name Mosaic_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ selected true
+ addUserKnob {20 User l Mosaic}
+ addUserKnob {14 size R 0 100}
+ size 50
+ addUserKnob {6 square t "output square pixels" +STARTLINE}
+ square true
+ addUserKnob {41 filter T Reformat1.filter}
+}
+ Input {
+  inputs 0
+  name Input
+  xpos -260
+  ypos 62
+ }
+ Reformat {
+  type "to box"
+  box_width {{"int(parent.size.w) > 0 ? min(width,int(parent.size.w)) : 1"}}
+  box_height {{"max(1, rint(square? size.w*height/width*input.pixel_aspect:            min(height, int(parent.size.h)    )            ))"}}
+  box_fixed true
+  scale {0.2 1}
+  resize distort
+  name Reformat1
+  selected true
+  xpos -260
+  ypos 134
+ }
+ Blur {
+  size 0.2
+  name Blur1
+  xpos -260
+  ypos 166
+ }
+ Reformat {
+  type "to box"
+  format "256 256 0 0 256 256 1 square_256"
+  box_width {{Input.width}}
+  box_height {{Input.height}}
+  resize distort
+  filter Impulse
+  name Reformat2
+  xpos -260
+  ypos 206
+ }
+ Output {
+  name Output
+  xpos -260
+  ypos 302
+ }
+end_group

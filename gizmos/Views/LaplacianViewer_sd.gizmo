@@ -1,0 +1,31 @@
+Gizmo {
+ addUserKnob {20 LaplacianViewer}
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ addUserKnob {41 colorspace_out l "Colorspace out" t "viewer by Sean Danischevsky 2017" T Colorspace1.colorspace_out}
+ addUserKnob {41 size T Laplacian1.size}
+
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos -150
+  ypos -394
+ }
+ Laplacian {
+  name Laplacian1
+  xpos -150
+  ypos -352
+ }
+ Colorspace {
+  colorspace_out 2.40
+  name Colorspace1
+  xpos -150
+  ypos -256
+ }
+ Output {
+  name Output1
+  xpos -150
+  ypos -178
+ }
+end_group

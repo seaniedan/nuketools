@@ -1,0 +1,125 @@
+Group {
+ name FractalBlur_sd1
+ tile_color 0xaaffffff
+ help "by Sean Danischevsky based on the original Shake Node I made for Double Negative in 2000."
+ selected true
+ addUserKnob {20 fractalBlur_sd t "by Sean Danischevsky 2006, 2008, 2012\nWarps input. Good for adding organic edges to roto, or for animating lightning flashes.\n\n"}
+ addUserKnob {41 channels T IDistort1.channels}
+ addUserKnob {41 size l "x noise scale" T U.size}
+ addUserKnob {41 size_1 l "y noise scale" T V.size}
+ addUserKnob {41 zoffset l "z noise offset" T V.zoffset}
+ addUserKnob {41 uv_scale l amount T IDistort1.uv_scale}
+ addUserKnob {41 filter T IDistort1.filter}
+}
+ Input {
+  inputs 0
+  name Input
+  xpos -115
+  ypos -276
+ }
+set N9a29030 [stack 0]
+ AdjBBox {
+  numpixels {{parent.IDistort1.uv_scale.main i} {parent.IDistort1.uv_scale.main i}}
+  name AdjBBox1
+  xpos -22
+  ypos -76
+ }
+ Input {
+  inputs 0
+  name mask
+  xpos 341
+  ypos -212
+  number 1
+ }
+push $N9a29030
+add_layer {tempDistortion tempDistortion.u tempDistortion.v}
+ Noise {
+  output {tempDistortion.u -tempDistortion.v}
+  cliptype none
+  replace true
+  size 5
+  zoffset {{parent.V.zoffset.main+345}}
+  octaves 8
+  gamma 1
+  center {960 540}
+  name U
+  xpos 60
+  ypos -263
+ }
+ Noise {
+  output {-tempDistortion.u tempDistortion.v}
+  cliptype none
+  replace true
+  size {{parent.U.size} {parent.U.size}}
+  octaves 8
+  gamma 1
+  center {960 540}
+  name V
+  xpos 60
+  ypos -221
+ }
+ Clamp {
+  name Clamp2
+  xpos 64
+  ypos -154
+  disable true
+ }
+ Grade {
+  channels tempDistortion
+  add -0.5
+  black_clamp false
+  name Grade1
+  xpos 64
+  ypos -102
+ }
+ Merge2 {
+  inputs 2
+  operation mask
+  bbox intersection
+  Bchannels tempDistortion
+  output tempDistortion
+  name Merge1
+  xpos 60
+  ypos -23
+  disable {{"!\[exists parent.input1]"}}
+ }
+ CopyBBox {
+  inputs 2
+  name CopyBBox1
+  xpos 60
+  ypos 60
+ }
+push $N9a29030
+ Copy {
+  inputs 2
+  channels tempDistortion
+  name Copy1
+  xpos -112
+  ypos 62
+ }
+ IDistort {
+  uv tempDistortion
+  uv_scale 10
+  filter Notch
+  name IDistort1
+  xpos -113
+  ypos 158
+ }
+ Remove {
+  channels tempDistortion
+  name Remove1
+  xpos -112
+  ypos 198
+ }
+ BlackOutside {
+  name BlackOutside1
+  xpos -113
+  ypos 242
+  disable true
+ }
+ Output {
+  name Output1
+  xpos -50
+  ypos 396
+ }
+end_group

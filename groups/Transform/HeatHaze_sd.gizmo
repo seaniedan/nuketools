@@ -1,0 +1,365 @@
+Group {
+ name HeatHaze_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ onCreate "nuke.thisNode()\['knobchanged'].execute()"
+ knobChanged knobchanged()
+ selected true
+ addUserKnob {20 Heathaze_sd t "heat haze\nby Sean Danischevsky 2014"}
+ addUserKnob {3 previousOctaves l INVISIBLE t "This knob should be hidden! It retains the last number of octaves so we can tell whether to rebuild them." +INVISIBLE}
+ previousOctaves 1
+ addUserKnob {22 knobchanged l INVISIBLE t "This knob is supposed to be Hidden!\nSean Danischevsky 2014" +INVISIBLE T "from __future__ import with_statement\ndef knobchanged():\n    #when any knob is changed, decide which scripts to call\n    #by Sean Danischevsky 2014\n\n    #get values to python\n    k= nuke.thisKnob().name()\n    if k == 'octaves':\n        update_octaves()\n\ndef update_octaves():\n    #update number of octaves in the group\n    import random\n    #get values to python\n    g= nuke.thisNode()\n    octaves= max(int(g\['octaves'].getValue()), 1)\n    prevoctaves= g\['previousOctaves'].getValue()\n    if octaves!= prevoctaves:\n        #in the group\n        with g:\n            id= nuke.toNode('IDistort1')\n            #delete old nodes\n            deletes= \[node for node in nuke.allNodes() if node.name().startswith('auto')]\n            for d in deletes:\n                nuke.delete(d)\n            for i in range(octaves-1):\n                sizetext= 'U1.size*(parent.lacunarity**%d)'%(i+1)\n                scaletext= 'IDistort1.uv_scale*parent.strengthlacunarity**%d'%(i+1)\n                transformtext= '0 U1.translate*parent.lacunarity**%d'%(i+1)\n                seedText= 'parent.V1.zoffset.main+%d'%random.randrange(-999,999)\n                u1= nuke.nodes.Noise(output= 'tempDistortion.u', replace= True, size= sizetext+' '+ sizetext, zoffset= seedText, octaves= 0, gamma= 1, translate= transformtext)\n                u1.setName('autoU1')\n                u1.setInput(0, id)\n                seedText= 'parent.V1.zoffset.main+%d'%random.randrange(-999999,999999)\n                v1= nuke.nodes.Noise(output= 'tempDistortion.v', replace= True, size= sizetext+' '+ sizetext, zoffset= seedText, octaves= 0, gamma= 1, translate= transformtext)\n                v1.setName('autoV1')\n                v1.setInput(0, u1)\n                o= nuke.nodes.Add(channels= 'tempDistortion', value= -.5)\n                o.setName('autoAdd1')\n                o.setInput(0,v1)\n                m= nuke.nodes.Merge2(operation= 'multiply', Bchannels= 'tempDistortion', output= 'tempDistortion')\n                m.setName('autoMerge1')\n                m.setInput(0,o)\n                m.setInput(1,nuke.toNode('Shuffle1'))\n                m\['disable'].setExpression('Shuffle1.disable')\n                id= nuke.nodes.IDistort(uv= 'tempDistortion', uv_scale= scaletext+' '+scaletext)\n                id.setName('autoIDistort1')\n                id.setInput(0, m)\n\n            #set output to last distort\n            s= nuke.toNode('SwitchMethod')\n            s.setInput(0, id)\n\n            #update the 'previous octaves' for next time\n            g\['previousOctaves'].setValue(octaves)" +STARTLINE}
+ addUserKnob {14 size t "largest size of heat haze" R 0 100}
+ size 20
+ addUserKnob {14 dstrength l strength t "distortion strength" R 0 100}
+ dstrength 10
+ addUserKnob {7 yspeed l "y speed" t "How fast the heat rises in frame. Uses a multiplier of time, so 0= no upward speed, 1= 1 pixel per frame." R 0 5}
+ yspeed 1
+ addUserKnob {7 zspeed l "z speed" t "How fast the heat haze moves 'towards us' in frame. 0 will only leave the upward speed. Larger numbers will effectively mask the upward speed and appear more random." R 0 5}
+ zspeed 0.1
+ addUserKnob {3 octaves t "Number of noise functions to add. Each function is a fraction of the speed and size of the previous."}
+ octaves 1
+ addUserKnob {7 lacunarity t "each octave divides speed and size by this amount." R 0 5}
+ lacunarity 0.5
+ addUserKnob {7 strengthlacunarity t "each octave divides strength by this amount." R 1 5}
+ strengthlacunarity 1
+ addUserKnob {3 seed t "random seed. If you use several heat hazes and Merge->Average them together, you should change the seed to avoid them looking the same."}
+}
+ BackdropNode {
+  inputs 0
+  name BackdropNode1
+  tile_color 0x8f442300
+  label "3d method"
+  note_font_size 42
+  xpos 2420
+  ypos -3720
+  bdwidth 1760
+  bdheight 1872
+ }
+ BackdropNode {
+  inputs 0
+  name BackdropNode26
+  tile_color 0xab901e00
+  label "2d method"
+  note_font "Bitstream Vera Sans"
+  note_font_size 42
+  xpos -770
+  ypos -1296
+  bdwidth 1100
+  bdheight 1824
+ }
+ Input {
+  inputs 0
+  name heat_matte
+  note_font "Bitstream Vera Sans"
+  xpos 830
+  ypos -1477
+  number 1
+ }
+ Dot {
+  name Dot113
+  note_font "Bitstream Vera Sans"
+  xpos 868
+  ypos -1356
+ }
+set N24695fd0 [stack 0]
+ Dot {
+  name Dot4
+  xpos 868
+  ypos 900
+ }
+ Input {
+  inputs 0
+  name image
+  note_font "Bitstream Vera Sans"
+  xpos 390
+  ypos -1453
+ }
+ Dot {
+  name Dot100
+  note_font "Bitstream Vera Sans"
+  xpos 428
+  ypos -1356
+ }
+set N24714600 [stack 0]
+ Dot {
+  name Dot2
+  xpos 2518
+  ypos -3468
+ }
+set N24716970 [stack 0]
+ Noise {
+  cliptype none
+  replace true
+  size {10 18}
+  zoffset {{frame*(HeatHazeControl.NoiseSpeed/10) x101 1}}
+  octaves 4
+  lacunarity 1
+  translate {0 {curve*HeatHazeControl.TranslateSpeed C x1 0 x101 250}}
+  center {960 540}
+  name HHNoise2
+  xpos 2920
+  ypos -3109
+ }
+ Dot {
+  name Dot1
+  xpos 2958
+  ypos -3084
+ }
+set N246eb840 [stack 0]
+ Emboss {
+  Angle 90
+  name HHEmboss1_X
+  xpos 2810
+  ypos -3050
+ }
+ Add {
+  value -0.5
+  name HHAdd1
+  xpos 2810
+  ypos -2978
+ }
+push $N246eb840
+ Emboss {
+  name HHEmboss1_Y
+  xpos 2920
+  ypos -3050
+ }
+ Add {
+  value -0.5
+  name HHAdd2
+  xpos 2920
+  ypos -2978
+ }
+ Copy {
+  inputs 2
+  from0 rgba.red
+  to0 rgba.red
+  name Copy1
+  xpos 2920
+  ypos -2906
+ }
+ Shuffle {
+  blue black
+  alpha black
+  name Shuffle3
+  xpos 2920
+  ypos -2845
+ }
+ Dot {
+  name Dot3
+  xpos 2958
+  ypos -2820
+ }
+set N1dc80d60 [stack 0]
+ NoOp {
+  name HHOutput_2d
+  xpos 2920
+  ypos -2413
+ }
+ Camera2 {
+  inputs 0
+  name HHCamera1
+  xpos 3043
+  ypos -2582
+ }
+set N1dc81440 [stack 0]
+push $N1dc80d60
+ Card2 {
+  rows 50
+  columns 50
+  control_points {3 3 3 6 
+
+1 {-0.5 -0.5 0} 0 {0.166667 0 0} 0 {0 0 0} 0 {0 0.166667 0} 0 {0 0 0} 0 {0 0 0} 
+1 {0 -0.5 0} 0 {0.166667 0 0} 0 {-0.166667 0 0} 0 {0 0.166667 0} 0 {0 0 0} 0 {0.5 0 0} 
+1 {0.5 -0.5 0} 0 {0 0 0} 0 {-0.166667 0 0} 0 {0 0.166667 0} 0 {0 0 0} 0 {1 0 0} 
+1 {-0.5 0 0} 0 {0.166667 0 0} 0 {0 0 0} 0 {0 0.166667 0} 0 {0 -0.166667 0} 0 {0 0.5 0} 
+1 {0 0 0} 0 {0.166667 0 0} 0 {-0.166667 0 0} 0 {0 0.166667 0} 0 {0 -0.166667 0} 0 {0.5 0.5 0} 
+1 {0.5 0 0} 0 {0 0 0} 0 {-0.166667 0 0} 0 {0 0.166667 0} 0 {0 -0.166667 0} 0 {1 0.5 0} 
+1 {-0.5 0.5 0} 0 {0.166667 0 0} 0 {0 0 0} 0 {0 0 0} 0 {0 -0.166667 0} 0 {0 1 0} 
+1 {0 0.5 0} 0 {0.166667 0 0} 0 {-0.166667 0 0} 0 {0 0 0} 0 {0 -0.166667 0} 0 {0.5 1 0} 
+1 {0.5 0.5 0} 0 {0 0 0} 0 {-0.166667 0 0} 0 {0 0 0} 0 {0 -0.166667 0} 0 {1 1 0} }
+  name HHCard3
+  xpos 3140
+  ypos -2725
+ }
+ ProcGeo {
+  x_size 1.5
+  x_offset 0.3
+  y_size 2
+  y_offset 0.1
+  Lacunarity 2.44
+  Gain 0.6
+  Speed 2.2
+  name HHProcGeo1
+  xpos 3140
+  ypos -2653
+ }
+ TransformGeo {
+  translate {0 0 {-parent.HeatHazeControl.DistanceFromCam.main-4 i}}
+  uniform_scale 7
+  name HHTransformGeo3
+  xpos 3140
+  ypos -2605
+ }
+push $N1dc81440
+ Scene {
+  inputs 2
+  name HHScene2
+  xpos 3153
+  ypos -2582
+ }
+push $N24716970
+ Remove {
+  name Remove2
+  xpos 3910
+  ypos -3290
+ }
+ ScanlineRender {
+  inputs 3
+  shutteroffset centred
+  name HHScanlineRender2
+  xpos 3140
+  ypos -2461
+ }
+ NoOp {
+  name HHOutput_3d
+  xpos 3140
+  ypos -2389
+ }
+ Switch {
+  inputs 2
+  name HH_MainSwitch
+  xpos 3030
+  ypos -2245
+ }
+push $N24716970
+add_layer {tempDistortion tempDistortion.u tempDistortion.v}
+ Copy {
+  inputs 2
+  from0 rgba.red
+  to0 tempDistortion.u
+  from1 rgba.green
+  to1 tempDistortion.v
+  name Copy2
+  xpos 2480
+  ypos -2175
+ }
+ IDistort {
+  channels rgb
+  uv tempDistortion
+  uv_scale 100
+  name IDistort4
+  xpos 2480
+  ypos -2101
+ }
+push $N24695fd0
+ Shuffle {
+  red alpha
+  green alpha
+  name Shuffle1
+  xpos -111
+  ypos -901
+  disable {{"\[variable liste \[channels input]]\[variable ele \"rgba.alpha\"]\[proc in \{list el\} \{expr \{\[lsearch -exact \$list \$el]>=0\}\}]!\[in \$liste \$ele]"}}
+ }
+push $N24714600
+ Noise {
+  output {tempDistortion.u -tempDistortion.v}
+  cliptype none
+  replace true
+  size {{parent.size} {parent.size}}
+  zoffset {{t*parent.zspeed+parent.seed}}
+  octaves 0
+  lacunarity 1
+  gamma 1
+  translate {0 {t*yspeed}}
+  center {960 540}
+  name U1
+  note_font "Bitstream Vera Sans"
+  xpos -490
+  ypos -986
+ }
+ Noise {
+  output {-tempDistortion.u tempDistortion.v}
+  cliptype none
+  replace true
+  size {{parent.U1.size}}
+  zoffset {{U1.zoffset.main+999}}
+  octaves 0
+  gamma 1
+  translate {0 {U1.translate}}
+  center {960 540}
+  name V1
+  note_font "Bitstream Vera Sans"
+  xpos -490
+  ypos -914
+ }
+ Add {
+  channels tempDistortion
+  value -0.5
+  name Add1
+  xpos -490
+  ypos -842
+ }
+ Merge2 {
+  inputs 2
+  operation multiply
+  Achannels rgb
+  Bchannels tempDistortion
+  output tempDistortion
+  name Merge1
+  note_font "Bitstream Vera Sans"
+  selected true
+  xpos -490
+  ypos -746
+  disable {{Shuffle1.disable x52 1}}
+ }
+ IDistort {
+  uv tempDistortion
+  uv_scale {{dstrength} {dstrength}}
+  name IDistort1
+  note_font "Bitstream Vera Sans"
+  xpos -490
+  ypos -640
+ }
+ Switch {
+  inputs 2
+  name SwitchMethod
+  xpos 280
+  ypos 755
+  disable true
+ }
+ Remove {
+  channels tempDistortion
+  name Remove1
+  xpos 280
+  ypos 790
+ }
+set N2488fa70 [stack 0]
+push $N24714600
+ Keymix {
+  inputs 3
+  name Keymix1
+  xpos 390
+  ypos 886
+ }
+push $N24716970
+ NoOp {
+  name HeatHazeControl
+  xpos 3360
+  ypos -3181
+  addUserKnob {20 User}
+  addUserKnob {7 DistanceFromCam t "3d distance: scales the effect.\nBeware, with a high distance, the camera can go out of the waving 3d plane." R 0 10}
+  DistanceFromCam 5.5
+  addUserKnob {7 NoiseSpeed R 0 10}
+  NoiseSpeed 0.1
+  addUserKnob {7 TranslateSpeed R 0 10}
+  TranslateSpeed 1
+ }
+push $N2488fa70
+ Output {
+  name Output2
+  xpos 280
+  ypos 1091
+ }
+end_group

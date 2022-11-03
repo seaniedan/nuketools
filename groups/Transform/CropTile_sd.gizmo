@@ -1,0 +1,51 @@
+Group {
+name CropTile_sd1
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+label "\[value tileXY]"
+selected true
+addUserKnob {20 User}
+addUserKnob {14 cells l tiles R 0 100}
+cells {4 1}
+addUserKnob {14 tileXY l "tile position" R 0 100}
+tileXY {{((tilenumber-1)%cells.w)+1} {(((tilenumber-1)//cells.w)%cells.h)+1}}
+addUserKnob {3 tilenumber l "tile number"}
+tilenumber 1
+addUserKnob {41 reformat T Crop1.reformat}
+addUserKnob {6 showgrid l "show grid" t "shows the grid (non-reformat mode only)" +STARTLINE}
+}
+Input {
+inputs 0
+name bg
+xpos 500
+ypos 395
+}
+Crop {
+box {{(tileXY.w-1)*(width/cells.w)} {(tileXY.h-1)*(height/cells.h)} {box.x+(width/cells.w)} {box.y+(height/cells.h)}}
+intersect true
+name Crop1
+selected true
+xpos 500
+ypos 563
+}
+set Na6e85d00 [stack 0]
+Grid {
+number {{parent.cells.w} {parent.cells.h}}
+name Grid1
+xpos 610
+ypos 635
+}
+push $Na6e85d00
+Switch {
+inputs 2
+which {{parent.showgrid&&!(parent.reformat)}}
+name Switch1
+xpos 500
+ypos 731
+}
+Output {
+name Output1
+xpos 500
+ypos 779
+}
+end_group

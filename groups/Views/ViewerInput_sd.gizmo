@@ -1,0 +1,59 @@
+Group {
+ name VIEWER_INPUT
+ tile_color 0xaaffffff
+ help "Copyright 2022 Sean Danischevsky"
+ selected true
+ addUserKnob {20 User l "Viewer Input"}
+ addUserKnob {41 AspectRatio l "aspect ratio" T VIEWER_INPUTcrop.AspectRatio}
+ addUserKnob {41 which l opacity t "Leave at 1 for faster viewer updates! Set to .999 for black bars without the Region of Interest lines." T Dissolve1.which}
+}
+ Input {
+  inputs 0
+  name Input1
+  xpos -480
+  ypos -634
+ }
+ Dot {
+  name Dot1
+  xpos -452
+  ypos -608
+ }
+set N8f04530 [stack 0]
+ Crop {
+  box {0 {floor((height-(width/AspectRatio))/2)} {width} {height-box.y}}
+  intersect true
+  crop false
+  name VIEWER_INPUTcrop
+  xpos -211
+  ypos -568
+  addUserKnob {20 User}
+  addUserKnob {7 AspectRatio l "aspect ratio"}
+  AspectRatio 2.39
+ }
+ BlackOutside {
+  name BlackOutside1
+  xpos -211
+  ypos -499
+ }
+push $N8f04530
+ Dissolve {
+  inputs 2
+  which 1
+  name Dissolve1
+  xpos -354
+  ypos -473
+ }
+push $N8f04530
+ Switch {
+  inputs 2
+  which {{(width/height)-(root.format.width/root.format.height)<.05}}
+  name Switch1
+  xpos -484
+  ypos -460
+ }
+ Output {
+  name Output1
+  xpos -484
+  ypos -394
+ }
+end_group

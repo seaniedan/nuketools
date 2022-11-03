@@ -1,0 +1,2 @@
+def moo():
+    return "moo"

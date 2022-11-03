@@ -1,0 +1,323 @@
+Group {
+ name Despill_sd1
+ tile_color 0xaaffffff
+ help "Despill and replace lost light with color or optional background\nby Sean Danischevsky 2012\n\nPlug source image into 'fg'.\nOptionally, add 'bg' image to use this instead of replace colour.\nAttatch a 'spillSource' to use that as the basis of the spill matte (e.g. use a denoised or graded version of the input)."
+ label "\[? spillColor.r \"red \" \"\"]\[? spillColor.g \"green \" \"\"]\[? spillColor.b \"blue\" \"\"]"
+ selected true
+ addUserKnob {20 despill_sd}
+ addUserKnob {18 spillColor l "spill color" t "Amount of spill in to remove in each channel."}
+ spillColor {0 1 0}
+ addUserKnob {6 spillColor_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 spillColor_panelDropped_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 spillColor_panelDropped_1_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 spillColor_panelDropped_1_1_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {18 limit t "limit the colors in this channel. For bluespill, limit red and green to less than 1 for a stronger despill."}
+ limit 1
+ addUserKnob {6 limit_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 limit_panelDropped_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 limit_panelDropped_1_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 limit_panelDropped_1_1_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {18 screenBalance l screenbalance t "Per channel, mix between min and max values of the other channels to use as replacement"}
+ screenBalance 0.5
+ addUserKnob {6 screenBalance_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 screenBalance_panelDropped_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 screenBalance_panelDropped_1_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {6 screenBalance_panelDropped_1_1_1 l "panel dropped state" -STARTLINE +HIDDEN}
+ addUserKnob {26 ""}
+ addUserKnob {20 despillcc l "despill color correct" t "adjust the color of despill. This happens before the replace colour light is added." n 1}
+ despillcc 0
+ addUserKnob {41 saturation T ColorCorrect1.saturation}
+ addUserKnob {41 gamma T ColorCorrect1.gamma}
+ addUserKnob {41 gain T ColorCorrect1.gain}
+ addUserKnob {41 offset T ColorCorrect1.offset}
+ addUserKnob {20 endGroup_1 l endGroup n -1}
+ addUserKnob {41 white l "replace color" t "Used if background (bg) not connected" T GradeNoBG.white}
+ addUserKnob {41 strengthen l "strengthen spill matte" t "Strengthens the despill matte to allow more BG through" T strengthenAlpha.white}
+ addUserKnob {6 outputAlpha l "output spill matte in alpha channel" +STARTLINE}
+ addUserKnob {6 invertAlpha l "invert alpha" t "inverts the outputted alpha channel" -STARTLINE}
+ invertAlpha true
+ addUserKnob {20 background l "background controls" t "Only used if there is a background (bg) input" n 1}
+ background 0
+ addUserKnob {7 blurBG l "blur background" t "how much to blur the background before using it to replace light removed during despill" R 0 1000}
+ blurBG 100
+ addUserKnob {20 endGroup n -1}
+ addUserKnob {41 maskChannel l "mask channel" T Keymix1.maskChannel}
+ addUserKnob {41 invertMask l invert T Keymix1.invertMask}
+}
+ Input {
+  inputs 0
+  name mask
+  label "(input \[value number])"
+  xpos 1955
+  ypos -640
+  number 3
+ }
+ Invert {
+  name Invert1
+  xpos 1940
+  ypos 1712
+ }
+ Input {
+  inputs 0
+  name Input
+  label "Image to despill\n(input \[value number])"
+  xpos -659
+  ypos -598
+ }
+set N3165e440 [stack 0]
+ Input {
+  inputs 0
+  name spillSource
+  label "(input \[value number])"
+  xpos 400
+  ypos -640
+  number 1
+ }
+push $N3165e440
+ Switch {
+  inputs 2
+  which {{"\[exists parent.input1]"}}
+  name SpillSourceSwitch
+  xpos 400
+  ypos -130
+ }
+set N3166cba0 [stack 0]
+push $N3165e440
+ MergeExpression {
+  inputs 2
+  temp_name0 minrg
+  temp_expr0 min(Ar*limit.r,Ag*limit.g)
+  temp_name1 maxrg
+  temp_expr1 max(Ar*limit.r,Ag*limit.g)
+  temp_name2 newb
+  temp_expr2 minrg*(1-screenBalance.b)+(maxrg*screenBalance.b)
+  temp_name3 bbb
+  temp_expr3 spillColor.b*b*max(0,(Ab-newb))/Ab
+  channel0 none
+  channel1 none
+  expr2 isnan(bbb)?0:bbb
+  channel3 {none none none -rgba.alpha}
+  name MergeExpressionB
+  xpos -40
+  ypos 62
+ }
+push $N3166cba0
+push $N3165e440
+ MergeExpression {
+  inputs 2
+  temp_name0 minrb
+  temp_expr0 min(Ar*limit.r,Ab*limit.b)
+  temp_name1 maxrb
+  temp_expr1 max(Ar*limit.r,Ab*limit.b)
+  temp_name2 newg
+  temp_expr2 minrb*(1-screenBalance.g)+(maxrb*screenBalance.g)
+  temp_name3 ggg
+  temp_expr3 spillColor.g*g*max(0,(Ag-newg))/Ag
+  channel0 none
+  expr1 isnan(ggg)?0:ggg
+  channel2 none
+  channel3 {none none none -rgba.alpha}
+  name MergeExpressionG
+  xpos -260
+  ypos 62
+ }
+push $N3166cba0
+push $N3165e440
+ MergeExpression {
+  inputs 2
+  temp_name0 mingb
+  temp_expr0 min(Ag*limit.g,Ab*limit.b)
+  temp_name1 maxgb
+  temp_expr1 max(Ag*limit.g,Ab*limit.b)
+  temp_name2 newr
+  temp_expr2 mingb*(1-screenBalance.r)+(maxgb*screenBalance.r)
+  temp_name3 rrr
+  temp_expr3 spillColor.r*r*max(0,(Ar-newr))/Ar
+  expr0 isnan(rrr)?0:rrr
+  channel1 none
+  expr1 0
+  channel2 none
+  expr2 0
+  channel3 {none none none -rgba.alpha}
+  expr3 0
+  name MergeExpressionR
+  xpos -399
+  ypos 14
+ }
+push $N3165e440
+ Shuffle {
+  red black
+  green black
+  blue black
+  name Shuffle1
+  xpos -480
+  ypos -34
+ }
+ Copy {
+  inputs 2
+  from0 rgba.red
+  to0 rgba.red
+  bbox B
+  name Copy1
+  xpos -480
+  ypos 80
+  disable {{!spillColor.r}}
+ }
+ Copy {
+  inputs 2
+  from0 rgba.green
+  to0 rgba.green
+  bbox B
+  name Copy5
+  xpos -480
+  ypos 176
+  disable {{!spillColor.g}}
+ }
+ Copy {
+  inputs 2
+  from0 rgba.blue
+  to0 rgba.blue
+  bbox B
+  name Copy6
+  xpos -480
+  ypos 272
+  disable {{!spillColor.b}}
+ }
+ Grade {
+  black_clamp false
+  name strengthenAlpha
+  selected true
+  xpos -480
+  ypos 350
+ }
+set Na8cd3c0 [stack 0]
+ Dot {
+  name Dot1
+  xpos -452
+  ypos 376
+ }
+set N2b6f4370 [stack 0]
+ Keyer {
+  operation "max keyer"
+  name Keyer1
+  xpos 70
+  ypos 800
+ }
+set N2c319510 [stack 0]
+ Invert {
+  channels alpha
+  name Invert2
+  xpos -380
+  ypos 1519
+  disable {{!parent.invertAlpha}}
+ }
+push $N2b6f4370
+ Keyer {
+  operation "luminance key"
+  name Keyer2
+  xpos 950
+  ypos 728
+ }
+ Input {
+  inputs 0
+  name bg
+  label "(input \[value number])"
+  xpos 1720
+  ypos -640
+  number 2
+ }
+ Blur {
+  channels rgb
+  size {{parent.blurBG i}}
+  name Blur2
+  label "\[value size]"
+  xpos 1720
+  ypos 152
+ }
+push $N3165e440
+ Shuffle {
+  in rgb
+  red white
+  green white
+  blue white
+  alpha black
+  name Shuffle2
+  xpos 1280
+  ypos 158
+ }
+ Grade {
+  name GradeNoBG
+  xpos 1280
+  ypos 182
+ }
+ Switch {
+  inputs 2
+  which {{"\[exists parent.input2]"}}
+  name BGSwitch
+  xpos 1280
+  ypos 590
+ }
+ Merge2 {
+  inputs 2
+  operation mask
+  bbox A
+  Bchannels rgb
+  output rgb
+  name Merge13
+  xpos 1280
+  ypos 878
+ }
+push $N2c319510
+push $Na8cd3c0
+push $N3165e440
+ Merge2 {
+  inputs 2
+  operation from
+  bbox B
+  output rgb
+  name Merge1
+  xpos -659
+  ypos 350
+ }
+ ColorCorrect {
+  inputs 1+1
+  name ColorCorrect1
+  xpos -480
+  ypos 830
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  bbox B
+  Achannels rgb
+  Bchannels rgb
+  output rgb
+  name Merge14
+  xpos -490
+  ypos 1355
+  disable {{!(GradeNoBG.white.r>0|GradeNoBG.white.g>0|GradeNoBG.white.b>0)}}
+ }
+ Copy {
+  inputs 2
+  from0 rgba.alpha
+  to0 rgba.alpha
+  bbox B
+  name CopyAlphaSwitch
+  xpos -490
+  ypos 1591
+  disable {{!parent.outputAlpha}}
+ }
+ Keymix {
+  inputs 3
+  bbox A
+  name Keymix1
+  xpos -480
+  ypos 1712
+  disable {{error}}
+ }
+ Output {
+  name Output1
+  xpos -490
+  ypos 1862
+ }
+end_group
