@@ -30,6 +30,7 @@ nuke.addFormat ('4096 4096 1.0 square_4K')
 
 
 #Nuke Viewers
+nuke.pluginAddPath('gizmos/Views')
 #NoOp first, as if OCIO is removed, this will be the default viewer, rather than 'Flip':
 nuke.ViewerProcess.register('No Operation', nuke.createNode,('NoOp', ))
 nuke.ViewerProcess.register('Flip (mirror vertical)', nuke.createNode,('FlipViewer_sd', ))
