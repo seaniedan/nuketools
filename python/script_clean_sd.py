@@ -99,7 +99,7 @@ def upstream(startNode, nodes= None, what= nuke.EXPRESSIONS|nuke.INPUTS|nuke.HID
         return
 
 
-def select_upstream(nodes, backdrops= True, select= True, add_file_creators= False):#, dependent_file_generators= True):
+def select_upstream_sd(nodes, backdrops= True, select= True, add_file_creators= False):#, dependent_file_generators= True):
     #by Sean Danischevsky 2014
     #select all upstream nodes (dependencies) of given nodes
     #and optionally backdrops if the nodes are on backdrops
@@ -474,21 +474,8 @@ def cleanupScript(nodes):
     #
     import nukescripts
 
-    nodes= select_upstream(nodes, backdrops= True)
+    nodes= select_upstream_sd(nodes, backdrops= True)
 
-    #
-    '''
-    for node in original_sel:
-        try:
-            node.setSelected(True)
-        except ValueError:
-            pass
-    '''
-    #select_upstream(original_sel, backdrops= True)
-    #print 22222,nodes
-
-    #select_upstream(nodes, backdrops= True)
-    #print 33333,nodes
     #delete everything else, except viewers:
     delete_list= [node for node in nuke.allNodes() if (not node['selected'].value()) and node.Class() != "Viewer"]
     nodes_delete_list= list(set(delete_list).intersection(set(nodes)))
