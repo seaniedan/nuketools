@@ -1,5 +1,5 @@
 
-#dir wqith this seq hangs beacuse of fromUserText:
+#dir with this seq hangs beacuse of fromUserText:
 #/mnt/projects/elements/apw/elements/Images/telegraphPoles/notHoms/291726.jpg
 #/mnt/projects/elements/apw/elements/Images/telegraphPoles/notHoms/62046198.jpg
 
@@ -74,7 +74,7 @@ if m:
 #########################################
 
 import nuke
-import seanscripts.backdrop_sd
+import backdrop_sd
 
 def recursive_read(walkPaths= None, maxdepth= -1, 
     extRead= ['.ari', '.avi', '.cin', '.dpx', '.dtex', '.exr', '.iff', '.gif', '.hdr', '.hdri', '.jpg', '.jpeg', '.mov', '.mp4' ,'.mxf', '.qt', '.pic', '.png', '.png16', '.psd', '.r3d', '.sgi', '.sgi16', '.rgb', '.rgba', '.tif', '.tiff', '.tif16', '.tiff16', '.ftif', '.ftiff', '.tga', '.targa', '.rla', '.yuv'], 
@@ -95,7 +95,7 @@ def recursive_read(walkPaths= None, maxdepth= -1,
 
     #can specify dict to use to replace this one, e.g. if you're only interested in dpx, {'dpx': 'Read'}
     import os
-    import seanscripts.arrange_by_sd
+    import arrange_by_sd
     print(('walkPaths=', walkPaths))
 
     def process_dir(currentDir, files= [], depth= 0):
@@ -429,7 +429,7 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                     if not label:
                         #just one group - take last dir
                         label= os.path.dirname(filepath)#.split('/')[-1]]                    
-                    bd= seanscripts.backdrop_sd.make_backdrop(nodes, label= label)
+                    bd= backdrop_sd.make_backdrop(nodes, label= label)
                     [n.setXYpos(int(n.xpos()), int(n.ypos()+ (j*20*gh))) for n in nodes]
                     bd.setXYpos(int(bd.xpos()),int(bd.ypos()+ (j*20*gh)) )
                 '''if exlist:
@@ -449,12 +449,12 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         #print 'nodes',nodes
         if len(nodes)> 1: #  * AND IF EACH DIR HAS >1 items - how to do that?
             #should really sort by directories found in above code, but for now:
-            #seanscripts.arrange_by_sd.arrange_by( nodes= nodes, sortKey= lambda node: node['file'].value().lower(), sortDiscrete= lambda node: node['file'].value().split(os.path.dirname(os.path.commonprefix([node['file'].value() for node in nodes])))[1].split('/')[1])  
-            #seanscripts.arrange_by_sd.arrange_by( nodes= nodes, sortKey= lambda node: nuke.filename(node, nuke.REPLACE).lower(), sortDiscrete= lambda node: node['file'].value().split(os.path.dirname(os.path.commonprefix([node['file'].value() for node in nodes])))[1].split('/')[1])              
+            #arrange_by_sd.arrange_by( nodes= nodes, sortKey= lambda node: node['file'].value().lower(), sortDiscrete= lambda node: node['file'].value().split(os.path.dirname(os.path.commonprefix([node['file'].value() for node in nodes])))[1].split('/')[1])  
+            #arrange_by_sd.arrange_by( nodes= nodes, sortKey= lambda node: nuke.filename(node, nuke.REPLACE).lower(), sortDiscrete= lambda node: node['file'].value().split(os.path.dirname(os.path.commonprefix([node['file'].value() for node in nodes])))[1].split('/')[1])              
             '''print 'nodes', [nodes[0] for nodes in returnNodes]
             print 'sortKey', nodes[1].lower()
             print 'sortDiscrete', os.path.dirname(nodes[1].split(hcf)[1]).split('/')[0]
-            seanscripts.arrange_by_sd.arrange_by( nodes= nodes, 
+            arrange_by_sd.arrange_by( nodes= nodes, 
                 sortKey= lambda node: nodes[1].lower(), 
                 sortDiscrete= lambda node: os.path.dirname(nodes[1].split(hcf)[1]).split('/')[0])'''
         #return 
@@ -1019,7 +1019,7 @@ nuke.menu( 'Nodes' ).addCommand("Image/Recursive Read...","recursive_read()","Sh
 #EXAMPLES:
 searchdir= "/mnt/projects/apw/edit/shots/"
 for node in nuke.selectedNodes():
-    seanscripts.recursive_read_sd.recursive_read(walkPaths= searchdir, maxdepth= 0, extRead= ['.mov'], includeString= os.path.basename(node['file'].value())[:11], excludeString= None, latest= False)
+    recursive_read_sd.recursive_read(walkPaths= searchdir, maxdepth= 0, extRead= ['.mov'], includeString= os.path.basename(node['file'].value())[:11], excludeString= None, latest= False)
 
 '''
 pass
