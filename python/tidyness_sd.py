@@ -95,7 +95,7 @@ def calculate_tidyness(nodes):
         return [i for i in intersections if i]
     
     #store original nodes, do I can restore at end: otherwise, for example, 
-    #nodes, uniquePos, up, tangled= seanscripts.tidyness_sd.calculate_tidyness(nodes)
+    #nodes, uniquePos, up, tangled= tidyness_sd.calculate_tidyness(nodes)
     #will overwrite my original selection.
     original_nodes= nodes
 

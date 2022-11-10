@@ -202,8 +202,8 @@ def copy_instead_of_render(destNodes, style= None, renderRange= None):
                 #print destWrite.name()
 
                 #was going to hash this -
-                #import seanscripts.make_write_directories_sd
-                #seanscripts.make_write_directories_sd.write_mkdir(node= destNode)#, askUser= True)
+                #import make_write_directories_sd
+                #make_write_directories_sd.write_mkdir(node= destNode)#, askUser= True)
                 #replaced because it didn't work with TK_Write
                 #but still get error 'file knob doesn't exist'
 

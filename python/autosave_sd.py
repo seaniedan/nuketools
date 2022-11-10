@@ -72,7 +72,7 @@ def autosave_sd():
 
 #ADD AUTOSAVE
 #for some reason this must be done in menu.py
-#nuke.addOnScriptSave(seanscripts.autosave_sd)
+#nuke.addOnScriptSave(autosave_sd)
 #unhash next line to test
 #m_autosave()
 

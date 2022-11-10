@@ -16,7 +16,7 @@
 #http://www.colorjack.com
 #
 #Another way to get a collection is to select some nodes in a script and run 
-#'seanscripts.scan_nodes_for_collection()' in Nuke's Script Editor. 
+#'scan_nodes_for_collection()' in Nuke's Script Editor. 
 #This will create backdrop nodes from this collection and print the 
 #text you need.
 
@@ -378,7 +378,7 @@ def make_backdrop(selNodes, label= None):
 def show_collection_as_backdrops(collection= collection):
     #create a palette of backdrop nodes using the current collection
     #or give a collection of RGBInt numbers as a list, e.g.
-    #seanscripts.show_collection_as_backdrops([538588160, 1652190464, 1194403328, 2878348800])
+    #show_collection_as_backdrops([538588160, 1652190464, 1194403328, 2878348800])
     print(('collection=', collection))
     xlen= int(math.sqrt(len(collection)))
     size= 100

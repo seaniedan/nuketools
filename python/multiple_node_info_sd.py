@@ -31,7 +31,7 @@ def multiple_node_info():
             #runs when testing:
             nuke.display("get_all_node_info()", nodes[0])
         else:
-            nuke.display("seanscripts.multiple_node_info_sd.get_all_node_info()", nodes[0])
+            nuke.display("multiple_node_info_sd.get_all_node_info()", nodes[0])
 
     else:
         if not nodes:

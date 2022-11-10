@@ -1,5 +1,5 @@
 import nuke
-#nuke.menu( 'Animation' ).addMenu( 'seanscripts' ).addCommand( 'Copy keyframes to frame list', "import seanscripts.copy_framelist_to_clipoard;seanscripts.copy_framelist_to_clipoard.copy_framelist()" )
+#nuke.menu( 'Animation' ).addMenu( 'seanscripts' ).addCommand( 'Copy keyframes to frame list', "import copy_framelist_to_clipoard;copy_framelist_to_clipoard.copy_framelist()" )
 
 def copy_framelist():
     #convert keys (which pass a certain test) to a framelist and copy to clipboard 

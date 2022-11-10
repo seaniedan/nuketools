@@ -507,8 +507,8 @@ def arrange_by(nodes, sortKey= None, sortReverse= False, sortArrange= 'horizonta
                 #add backdrop node def m_Backdrop(selNodes= nuke.selectedNodes(), label= None):
                 original_selection= nuke.selectedNodes()
 
-                import seanscripts.backdrop_sd
-                seanscripts.backdrop_sd.make_backdrop(selNodes= group, label= sortDiscrete(group[0]))
+                import backdrop_sd
+                backdrop_sd.make_backdrop(selNodes= group, label= sortDiscrete(group[0]))
                 [i.setSelected(1) for i in original_selection]
 
     

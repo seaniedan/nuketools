@@ -98,11 +98,11 @@ def medianXY(listxy):
 
 #SCALE 
 def scale_nodes(nodes, scaleX= False, scaleY= False, centerX= None, centerY= None, minmove= 20):
-    import seanscripts.backdrop_sd
+    import backdrop_sd
 
     if nodes:
         #move backdrop nodes from list to a dict {backdrop node: nodes on backdrop}
-        #backdrops= {node: seanscripts.backdrop_sd.nodes_in_backdrop(node) for node in nodes if node.Class() == 'BackdropNode'}
+        #backdrops= {node: backdrop_sd.nodes_in_backdrop(node) for node in nodes if node.Class() == 'BackdropNode'}
         #separate nodes into 2 lists: nodes and backdrops
         backdrops= [node for node in nodes if node.Class() == 'BackdropNode']
         [nodes.remove(node) for node in backdrops]
@@ -185,7 +185,7 @@ def scale_nodes(nodes, scaleX= False, scaleY= False, centerX= None, centerY= Non
                 #print backdrop.name(), nodes
                 if nodes:
                     #scale backdrops to still cover nodes (which have already been scaled)
-                    seanscripts.backdrop_sd.resize_bd(backdrop, selNodes= nodes)
+                    backdrop_sd.resize_bd(backdrop, selNodes= nodes)
                 else:
                     #SCALE EMPTY BACKDROPS
                     if scaleX != 1:
@@ -206,10 +206,10 @@ def scale_nodes(nodes, scaleX= False, scaleY= False, centerX= None, centerY= Non
 #TRANSLATE
 # to do  - keep on backdrops 
 '''def translate_nodes_up(nodes= nuke.selectedNodes()):
-    import seanscripts.backdrop_sd
+    import backdrop_sd
     if nodes:
         #make dir of all backdrops and nodes on each
-        backdrops= {backdrop: seanscripts.backdrop_sd.nodes_in_backdrop(backdrop) for backdrop in nuke.allNodes('BackdropNode')}
+        backdrops= {backdrop: backdrop_sd.nodes_in_backdrop(backdrop) for backdrop in nuke.allNodes('BackdropNode')}
         #print 'backdrops', backdrops
         #remove backdrops from selection
         [nodes.remove(backdrop) for backdrop in backdrops.keys() if backdrop in nodes]
@@ -225,7 +225,7 @@ def scale_nodes(nodes, scaleX= False, scaleY= False, centerX= None, centerY= Non
         #if 
         if nodes_on_backdrop:
             #scale backdrops to still cover nodes (which have already been moved)
-            seanscripts.backdrop_sd.resize_bd(backdrop, selNodes= nodes)
+            backdrop_sd.resize_bd(backdrop, selNodes= nodes)
         else:
             #MOVE EMPTY BACKDROPS
             backdrop.setYpos(int(backdrop.ypos()- nuke.toNode("preferences")["GridHeight"].value())) '''

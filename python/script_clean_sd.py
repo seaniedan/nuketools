@@ -379,7 +379,7 @@ def tidy(nodes):
     #tidy nodes and backdrops.
     #to do: align b lines etc.
 
-    import seanscripts.tidyness_sd
+    import tidyness_sd
 
     if not nodes:
         nodes= nuke.allNodes()
@@ -387,7 +387,7 @@ def tidy(nodes):
     #set up a panel to show options and current tidyness level
 
     #show tidyness
-    nodes, uniquePos, up, tangled= seanscripts.tidyness_sd.calculate_tidyness(nodes)
+    nodes, uniquePos, up, tangled= tidyness_sd.calculate_tidyness(nodes)
     #set weightings
     uniquePosweighting= .333
     upweighting= .333
@@ -458,7 +458,7 @@ def tidy(nodes):
     clear_transform_expressions(nodes)
     #set cards to 1x1 (unless they have distortion)
     set_cards_to_one_row_one_column(nodes)'''
-    seanscripts.tidyness_sd.show_tidyness(nodes)
+    tidyness_sd.show_tidyness(nodes)
 
 
 def cleanupScript(nodes):
