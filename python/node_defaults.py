@@ -83,9 +83,6 @@ nuke.knobDefault('Tracker.warp', 'a')
 #Turn off Tracker Keyframes which slow EVERYTHING down
 nuke.knobDefault('Tracker.keyframe_display', '3')
 
-#Viewer node lines are messy - this way they only appear when the viewer is selected:
-nuke.knobDefault('Viewer.hide_input', '1')
-
 # Write: auto crop (add ROI)with EXR files
 nuke.knobDefault('Write.exr.autocrop', '1')  
 nuke.knobDefault('Write.exr.interleave', 'channels and layers')  
