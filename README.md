@@ -14,6 +14,6 @@ git clone https://github.com/seaniedan/nuketools.git
 echo "nuke.pluginAddPath('nuketools')" >> init.py
 ```
 
-3. Restart Nuke. You should see 
+3. Restart Nuke. You should see a SeanScripts menubar item, and a 'SD' icon on the node panel.
 
 The process is similar for Windows, feel free to message me if you need help.
