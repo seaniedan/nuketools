@@ -202,6 +202,13 @@ def open_dirs_in_browser(nodes):
         #text= [v[2] for v in [item for sublist in node_class_label_text.values() for item in sublist]]
         #to find the files we're using.
         text= [nuke.filename(node) for node in nodes]
+        # Filter out None and empty values
+        text= [t for t in text if t and t.strip()]
+        
+        if not text:
+            nuke.alert("No valid file paths found in selected nodes!")
+            return
+            
         #dict {node:(class, label, text)}
         #hold the text
         #print node_class_label_text
@@ -213,7 +220,11 @@ def open_dirs_in_browser(nodes):
         #print i, file
     else:
         #copy the script name
-        text= [nuke.scriptName()]
+        script_name = nuke.scriptName()
+        if not script_name or not script_name.strip():
+            nuke.alert("No script name available!")
+            return
+        text= [script_name]
 
     if text:
         #check the dirs
@@ -221,22 +232,25 @@ def open_dirs_in_browser(nodes):
         no_dirs= []# d!irectories that don't exist!
         for file in text:
             try:
+                if not file or not file.strip():
+                    continue
                 dirname= os.path.dirname(file)
-                if os.path.isdir(dirname):
+                if dirname and os.path.isdir(dirname):
                     dirs.append(dirname)
                 else:
                     no_dirs.append(dirname)
-            except:
-                no_dirs.append(dirname)
+            except Exception as e:
+                no_dirs.append(f"Error processing {file}: {str(e)}")
         dirs= list(set(dirs))
 
         if len(dirs)> 1:
             if nuke.ask("Do you want to open %d directories in the file browser?"% len(dirs)):
                 for dir in dirs:
                     open_dir_in_browser(dir)
+        elif len(dirs) == 1:
+            open_dir_in_browser(dirs[0])
         else:
-            for dir in dirs:
-                open_dir_in_browser(dir)
+            nuke.alert("No valid directories found to open!")
 
         #warn if no directories were found
         no_dirs= list(set(no_dirs))
@@ -244,6 +258,8 @@ def open_dirs_in_browser(nodes):
             nuke.message("Couldn't find these directories:\n%s" % ("\n".join([dir for dir in no_dirs])))
         elif len(no_dirs) == 1:
             nuke.message("Couldn't find directory:\n%s" % ("\n".join([dir for dir in no_dirs])))
+    else:
+        nuke.alert("No valid file paths found!")
     return
 
 
@@ -252,16 +268,15 @@ def open_dir_in_browser(dir):
     import os, sys, subprocess
 
     if sys.platform == 'darwin':
-        os.system('open %s'% dir)
-        nuke.message('here')
+        subprocess.run(['open', dir], check=False)
 
     elif sys.platform == 'win32':
-        dir= dir.replace('/', os.sep)
-        os.system('explorer \"%s\"' % dir)
+        dir = dir.replace('/', os.sep)
+        subprocess.run(['explorer', dir], check=False)
 
     elif sys.platform.startswith('linux'):
         try:
-            subprocess.Popen(['gio','open', dir]) #why os.system not popen?
-        except:
+            subprocess.Popen(['gio', 'open', dir])
+        except Exception:
             nuke.message("Can't find a file browser!\nTry adding one in open_dir_in_browser (copy_file_to_clipboard_sd.py)")
     return

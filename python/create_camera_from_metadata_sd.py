@@ -1,4 +1,5 @@
 import nuke
+import ast
 
 def createMetaDatCam( node ):
     '''
@@ -42,7 +43,7 @@ def createMetaDatCam( node ):
             cam[ k ].setValueAt(  float( val ), frame )
 
         # CONVERT STRING BACK TO LIST OBJECT AND ASSIGN
-        matrixList = eval( node.metadata('exr/nuke/camera/matrix') )
+        matrixList = ast.literal_eval( node.metadata('exr/nuke/camera/matrix') )
         for i, v in enumerate( matrixList ):
             cam[ 'matrix' ].setValueAt( v, frame, i)
         # UPDATE PROGRESS BAR

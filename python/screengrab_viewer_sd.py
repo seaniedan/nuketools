@@ -3,26 +3,24 @@ import nuke
 def open_dir_in_browser(dir):
     import os, sys, subprocess
 
-    if sys.platform == 'darwin': 
-        os.system('open %s'% dir) 
+    if sys.platform == 'darwin':
+        subprocess.run(['open', dir], check=False)
 
-    elif sys.platform == 'linux2': 
+    elif sys.platform.startswith('linux'):
         try:
-            #os.system('caja %s' % dir)
-            subprocess.Popen('/usr/bin/caja  \"%s\"' % dir, shell= True)
-        except:
+            subprocess.Popen(['gio', 'open', dir])
+        except Exception:
             try:
-                os.system('xdg-open \"%s\"'% dir) #why os.system not popen?
-
-            except:
+                subprocess.Popen(['xdg-open', dir])
+            except Exception:
                 try:
-                    os.system('export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH ; nautilus \"%s\"' % dir)
-                except:
+                    subprocess.Popen(['nautilus', dir])
+                except Exception:
                     nuke.message("Can't find a file browser!\nTry adding one in open_dir_in_browser (copy_file_to_clipboard_sd.py)")
 
-    elif sys.platform == 'win32': 
-        dir= dir.replace('/', os.sep) 
-        os.system('explorer \"%s\"' % dir)
+    elif sys.platform == 'win32':
+        dir = dir.replace('/', os.sep)
+        subprocess.run(['explorer', dir], check=False)
     
     return
 

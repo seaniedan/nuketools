@@ -7,12 +7,13 @@ def launchNukeX(x):
 	nuke.scriptSave()
 
 	my_env= os.environ.copy()
-	cmd= nuke.env['ExecutablePath']
+	cmd= [nuke.env['ExecutablePath']]
 	if x:
-		cmd+= " -nukex"
-	cmd += " "
-	cmd += nuke.root().knob('name').value()
-	print(cmd)
+		cmd.append('-nukex')
+	script_name = nuke.root().knob('name').value()
+	if script_name:
+		cmd.append(script_name)
+	print(' '.join(cmd))
 
-	subprocess.Popen(cmd, shell= True, env= my_env)
+	subprocess.Popen(cmd, shell=False, env=my_env)
 	nuke.scriptExit()
