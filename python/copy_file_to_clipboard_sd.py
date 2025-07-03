@@ -5,25 +5,31 @@ from collections import defaultdict
 
 def copy_to_clipboard(clipboard_text):
     """
-    moves text to copy buffer
+    copy text to copy buffer
     fixed for nuke 11
     :param clipboard_text: str
     :return: none
     """
+    # Try PySide6 first, then PySide2, then PySide
     try:
-        #QApplication moved to widgets 
-        from PySide2.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtGui import QGuiApplication
     except ImportError:
-        from PySide.QtGui import QApplication
+        try:
+            from PySide2.QtWidgets import QApplication
+            from PySide2.QtGui import QGuiApplication
+        except ImportError:
+            from PySide.QtGui import QApplication
+            QGuiApplication = QApplication  # Fallback for old PySide
+    
     try:
-        app= QApplication.instance() # checks if QApplication already exists 
+        app = QApplication.instance()  # checks if QApplication already exists 
     except: 
         # create QApplication if it doesnt exist 
         import sys
-        app= QApplication(sys.argv)
+        app = QApplication(sys.argv)
 
-    clipboard= app.clipboard() 
-    
+    clipboard = QGuiApplication.clipboard() 
     clipboard.setText(str(clipboard_text))
 
 
@@ -34,20 +40,26 @@ def clipboard_text():
     :param clipboard_text: str
     :return: none
     """
+    # Try PySide6 first, then PySide2, then PySide
     try:
-        #QApplication moved to widgets 
-        from PySide2.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtGui import QGuiApplication
     except ImportError:
-        from PySide.QtGui import QApplication
+        try:
+            from PySide2.QtWidgets import QApplication
+            from PySide2.QtGui import QGuiApplication
+        except ImportError:
+            from PySide.QtGui import QApplication
+            QGuiApplication = QApplication  # Fallback for old PySide
 
     try:
-        app= QApplication.instance() # checks if QApplication already exists 
+        app = QApplication.instance()  # checks if QApplication already exists 
     except: 
         # create QApplication if it doesnt exist 
-        app= QApplication(sys.argv)
+        import sys
+        app = QApplication(sys.argv)
 
-    clipboard= app.clipboard() 
-    
+    clipboard = QGuiApplication.clipboard() 
     return clipboard.text()
 
 
