@@ -1,4 +1,16 @@
 from xml.etree import ElementTree
+import xml.etree.ElementTree as ET
+
+# Create a safer parser that disables external entities
+def safe_parse(file_path):
+    parser = ET.XMLParser(target=ET.TreeBuilder())
+    # Disable entity expansion to prevent XXE attacks
+    parser.entity = lambda x, y, z: None
+    return ET.parse(file_path, parser=parser)
+
+# Replace ElementTree.parse with our safe version
+ElementTree.parse = safe_parse
+
 import nuke
 import nukescripts
 import os

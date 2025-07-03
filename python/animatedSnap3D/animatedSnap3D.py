@@ -7,7 +7,7 @@
 # Updates:
 # 03/2012  -  Updated for Nuke 6.3, since the name of the original functions in the snap3d module changed from 6.2 to 6.3
 #          -  Cleaned up and grouped animation loop into a single wrapper function
-#
+# 07/2025  -  Updated for Nuke 16.0, no longer needed with new geo nodes. 
 
 import nuke, nuke.geo
 from nukescripts import snap3d as s3d

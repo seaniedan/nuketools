@@ -1,4 +1,13 @@
-from .animatedSnap3D import *
+from .animatedSnap3D import (
+    getFrameRange,
+    translateThisNodeToPointsAnimated,
+    translateRotateThisNodeToPointsAnimated,
+    translateRotateScaleThisNodeToPointsAnimated,
+    translateToPointsAnimated,
+    translateRotateToPointsAnimated,
+    translateRotateScaleToPointsAnimated,
+    animatedSnapFunc
+)
 
 import nuke
 # Add menu items under the Axis Menu

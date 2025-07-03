@@ -26,6 +26,27 @@ import nuke, random, string, math, datetime, os
 #import scipy
 #import numpy
 
+def is_safe_path(file_path):
+    """Validate that a file path is safe to read from"""
+    if not file_path or not isinstance(file_path, str):
+        return False
+    
+    # Normalize the path
+    try:
+        normalized_path = os.path.normpath(file_path)
+    except:
+        return False
+    
+    # Check for path traversal attempts
+    if '..' in normalized_path:
+        return False
+    
+    # Check if the file exists and is readable
+    try:
+        return os.path.isfile(normalized_path) and os.access(normalized_path, os.R_OK)
+    except (OSError, IOError):
+        return False
+
 def get_colors():
     #Use mona lisa colour palette as default:
     #collection =[3604397313, 4292418049, 4287367937, 3944521217, 4278190081, 1577058305, 3220521473, 2277965825, 9502721, 944177153, 2800939521, 12558593, 26113, 1494410753]  
@@ -39,27 +60,31 @@ def get_colors():
     for dir in nuke.pluginPath():
         fileName = os.path.join(dir, "nuke_colors.txt")
         #print 'looking for',fileName
-        if os.path.exists(fileName):
+        if os.path.exists(fileName) and is_safe_path(fileName):
             print(('reading',fileName))
-            file = open(fileName)
-            lines = file.readlines()
-            file.close()
-            lines = [line.strip() for line in lines]
-            lines = [line for line in lines if len(line) > 0 and line[0] != '#']
-            if len(lines) < 1:
-                raise Exception('Empty nuke_colors.txt')     
-                return defaultCollection
-            lines = [line.split(',') for line in lines]
-            hexes=[]
-            # in future, would be nice to have many lines and choose scheme at random,
-            #then build on that choice. But for now take first line:
-            for hex in lines[0]:
-                hexes.append(  hex_to_RGBInt(hex)  )        
-            return hexes
+            try:
+                with open(fileName, 'r') as file:
+                    lines = file.readlines()
+                lines = [line.strip() for line in lines]
+                lines = [line for line in lines if len(line) > 0 and line[0] != '#']
+                if len(lines) < 1:
+                    raise Exception('Empty nuke_colors.txt')     
+                    return defaultCollection
+                lines = [line.split(',') for line in lines]
+                hexes=[]
+                # in future, would be nice to have many lines and choose scheme at random,
+                #then build on that choice. But for now take first line:
+                for hex in lines[0]:
+                    hexes.append(  hex_to_RGBInt(hex)  )        
+                return hexes
+            except (IOError, OSError, Exception) as e:
+                print(f"Error reading {fileName}: {e}")
+                continue
         else:
             #print "Put a nuke_colors.txt file in your NUKE_PATH. Couldn't find such a file in", nuke.pluginPath()
             #raise Exception('No nuke_colors.txt')
-            return defaultCollection
+            continue
+    return defaultCollection
 
 def scan_nodes_for_collection(nodes):
     #scan tile color of nodes and print to terminal the collection as RGBInt

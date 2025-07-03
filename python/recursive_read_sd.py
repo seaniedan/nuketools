@@ -1,4 +1,3 @@
-
 #dir with this seq hangs beacuse of fromUserText:
 #/mnt/projects/elements/apw/elements/Images/telegraphPoles/notHoms/291726.jpg
 #/mnt/projects/elements/apw/elements/Images/telegraphPoles/notHoms/62046198.jpg
@@ -134,15 +133,54 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         #node.setSelected(True) #I'll do this for all later
         return node
 
+    def is_safe_file_path(file_path):
+        """Validate that a file path is safe to read from"""
+        if not file_path or not isinstance(file_path, str):
+            return False
+        
+        # Normalize the path
+        try:
+            normalized_path = os.path.normpath(file_path)
+        except:
+            return False
+        
+        # Check for path traversal attempts
+        if '..' in normalized_path:
+            return False
+        
+        # Only allow reading from allowed file extensions
+        allowed_extensions = ['.csv', '.xml', '.txt', '.xpm']
+        _, ext = os.path.splitext(normalized_path.lower())
+        if ext not in allowed_extensions:
+            return False
+        
+        # Check if the file exists and is readable
+        try:
+            return os.path.isfile(normalized_path) and os.access(normalized_path, os.R_OK)
+        except (OSError, IOError):
+            return False
+
     def make_stickynote(msg):
-        filename= open(msg, "r")
-        myLabel= filename.read(100)
-        filename.close()
-        finalLabel= ("%s\n%s") % (msg,myLabel)
-        #node= nuke.createNode('StickyNote')
-        node= nuke.nodes.StickyNote(label=finalLabel)
-        #node['label'].setValue(finalLabel)
-        return node
+        if not is_safe_file_path(msg):
+            # If path is not safe, just create a sticky note with the filename
+            finalLabel = os.path.basename(msg) if msg else "Invalid file path"
+            node = nuke.createNode('StickyNote')
+            node['label'].setValue(finalLabel)
+            return
+        
+        try:
+            with open(msg, "r", encoding='utf-8', errors='ignore') as filename:
+                myLabel = filename.read(100)
+            finalLabel = ("%s\n%s") % (msg, myLabel)
+            node = nuke.createNode('StickyNote')
+            node['label'].setValue(finalLabel)
+            return
+        except (IOError, OSError, Exception) as e:
+            # If file reading fails, create a sticky note with error info
+            finalLabel = ("%s\nError reading file: %s") % (msg, str(e))
+            node = nuke.createNode('StickyNote')
+            node['label'].setValue(finalLabel)
+            return
 
     def make_camera(msg):
         #node= nuke.createNode('Camera2')
@@ -475,556 +513,6 @@ def recursive_read(walkPaths= None, maxdepth= -1,
 if __name__ == "__main__":
     #runs when testing:
     recursive_read(walkPaths= None, maxdepth= -1)
-
-
-
-'''
-#recursive_read(r"Z:\Radiant_VFX\02_LiveProjects\2000_UCL_ChampionsLeague_2015-18\05_Dailies\Dailies_019__01-05-2014")
-#recursive_read()
-#recursive_read(r"Z:/Radiant_VFX/02_LiveProjects/2000_UCL_ChampionsLeague_2015-18/03_VFX/02_Dev/03_MAR/07_Maya/2000_UCL_titles_os-gs_shared/Cameras/")
-
-
-#ask if we want to sort
-#highlight duplicates
-pass
-
-
-
-
-
-###################################################################
-###################################################################
-###################################################################
-######################################################################
-############
-#import fnmatch
-#fnmatch.filter(['aaa','bb'], "*a")
-
-
-def recursive_read(walkPath=''):
-
-    def processFile(currentDir):
-        #recursively process files within a directory
-        # Get a list of files and Dirs in currentDir
-        filesInCurDir = nuke.getFileNameList(os.path.normpath(currentDir))
- 
-        # Traverse through all files
-        for file in filesInCurDir:
-            curFile = os.path.join(currentDir, file)
- 
-            # Check if it's a normal file or directory
-            if os.path.isdir(curFile):
-                # Enter into directory for further processing
-                processFile(curFile)
-                #print "going into",curFile
-            else:
-                # Add to the file list
-                files.append(curFile)
-        #for i,file in enumerate(files):
-        #    print i,file
-        #print "curfile",curFile
-        return files
-
-    def nuke_loader(file):
-        #load the right Class of object for given file
-        classDict={}
-
-    #main part of recursive load
-    if not walkPath:
-        walkPath=nuke.getClipname('Choose a file to load all files in this folder', multiple= False)
-    try:
-        if os.path.isfile(walkPath):
-            walkPath=os.path.split(walkPath)[0]
-    except:
-        return
-    if walkPath:
-            print 'walkPath=',walkPath
-            files=[]
-            files=processFile(walkPath)
-            print 'files\n----\n'
-            for i,file in enumerate(files):
-                print i,file
-                nuke_loader(file)
-    else:
-        return
-    
-
-#add it to menu: Load all in dir = Shift+R
-#nuke.menu( 'Nodes' ).addCommand("Image/Recursive Read...","recursive_read()","Shift+R")
-
-recursive_read(r"Z:\Radiant_VFX\02_LiveProjects\2000_UCL_ChampionsLeague_2015-18\05_Dailies\Dailies_019__01-05-2014")
-#recursive_read()
-#recursive_read(r"Z:/Radiant_VFX/02_LiveProjects/2000_UCL_ChampionsLeague_2015-18/03_VFX/02_Dev/03_MAR/07_Maya/2000_UCL_titles_os-gs_shared/Cameras/")
-
-
-print files
-pass
-
-
-
-##############################################################
-#revised 'paste' function:
-# - assume clipboard contains *something!*
-# - try regular paste - anything?
-# - multiple lines?
-#then for each line:
-# - try removing any spaces before each line
-# - try expanding any regex
-# - multiple diredctories to follow? ASK - add 'always follow' option
-# - not just image files? Load everything then ASK... show counts/files and checkboxes
-# - 
-# - 
-# - 
-# - 
-# - 
-#########################################
-# m_load_all_in_directory
-# by Sean Danischevsky 2011, 2012
-# recursively search a directory for Nuke loadable files
-# and present them usefully!
-# overview:
-# - get dir, setup filters, prefs (or be passed these)
-# - get list of dirs, check for files - done
-# - check what extension
-# - check with prefs what to do: 
-# -           images: create seq, load seq, conv to stereo 
-# -           geo: load geo
-# -           camera: load camera
-# -           else load into sticky note
-#
-#
-# http://effbot.org/librarybook/os-path.htm
-
-def recursive_read():
-    import os, re, nuke
-    verbose=True
-    nameList=[]
-    filesFound=[]
-    ReadList=[]
-    inStereo=True
-    stereoReplace=[('_re_','_le_'),('/right/','/left/'),('_right_','_left_'),('_right-','_left-')] # (source,replace) for all right to left conversions needed to match paths and filenames
-
-
-
-
-
-    def split_image_sequences(path, files):
-      if verbose: print path
-      #Get a list of unique names in file
-      for i in files:
-          sp=i.split('.')
-          name=sp[0]
-          ext=sp[-1]
-          name2CheckFor=str(name)+'.'+str(ext)
-          if name2CheckFor not in nameList:
-              nameList.append(name2CheckFor)
-      for n in nameList:
-          curList=[]
-          for i in files:
-              if not str(path).endswith('/'):
-                path+='/'#can this go outside loop?
-              if verbose: print path
-  
-              if n.split('.')[0] in i:
-                  if n.split('.')[-1] in i:
-                      curList.append(path+i)
-          if curList:
-              filesFound.append(curList)
-          filesFound.sort()
-      return filesFound
-
-    def imgSeq2NukeFormat(filesFound):
-        for ff in filesFound:
-          if verbose: print 'file found:', ff
-          #SHOULDN'T NEED TO LOOP AS SHOULD BE A SORTED LIST BUT THIS IS FAILING FOR SOME REASON SO WORKING THROUGH LIST TO GET START AND END
-          #UNCOMMENT THE NEXT 2 LINES AND COMMENT TO ###END MINMAX###
-          #start=ff[0].split('.')[-2]
-          #end=ff[-1].split('.')[-2]
-          minMax=[]
-          for i in ff:
-              frames=i.split('.')[-2]
-              minMax.append(frames)
-          start=min(minMax)
-          end=max(minMax)
-          ###END MINMAX###
-          if verbose: print 'start ', start, 'end ', end
-
-          #move on and ignore if the file is a hidden file
-          if  ff[0].split('/')[-1].startswith('.'):
-            print 'hidden file skipped'
-            continue     
-          path=ff[0].split('/')[0]
-          splitFiles= ff[0].split('.')
-          name=splitFiles[0]
-
-
-          padNum=splitFiles[-2]
-          if padNum.isdigit():
-              padding =len(splitFiles[-2])*'#'
-          else:
-              padding=''
-          ext=splitFiles[-1]
-      
-          if padding:
-              readFile=path+name+'.'+padding+'.'+ext+' '+start+'-'+end
-          else:
-              readFile=path+name+'.'+ext
-          ReadList.append(readFile)
-        return ReadList   
-
-    def stereoMatch(fileName):
-      #replace right strings with left strings to match paths and files
-      for i in range(len(stereoReplace)):
-        pattern = re.compile(stereoReplace[i][0])
-        fileName = pattern.sub(stereoReplace[i][1], fileName)
-
-      return fileName
-
-
-
-
-    def createReads(ReadList):
-      for r in ReadList:
-          if r.split(' ')[0][-3:] not in ('obj', 'fbx','sfx'):
-              if inStereo:
-                 if '/re/' in r:
-                    r_left=stereoMatch(r)
-                    rnleft=nuke.createNode('Read')
-                    rnright=nuke.createNode('Read')
-                    jv=nuke.createNode('JoinViews')
-                    rnleft['file'].fromUserText(r_left)
-                    rnright['file'].fromUserText(r)
-                    jv.setInput(0,rnleft)
-                    jv.setInput(1,rnright)
-                 elif '/le/' not in r:
-                    rn=nuke.createNode('Read')
-                    rn['file'].fromUserText(r)
-              else:
-                 rn=nuke.createNode('Read')
-                 rn['file'].fromUserText(r)
-          else:
-              rn=nuke.createNode('ReadGeo')
-              rn.setInput(0,None)
-              rn['file'].fromUserText(r)
-          #rn.setSelected(False)
-          #createdNodes.append(rn)
-      #for i in createdNodes: print i['file'].getValue()
-
-
-
-
-
-    walkPath=nuke.getClipname('Choose Folder',multiple=False)
-    if os.path.isfile(walkPath):walkPath=os.path.split(walkPath)[0]
-    if verbose: print 'walkPath=',walkPath
-    for i in os.walk(walkPath):
-         filesFound=split_image_sequences(i[0], i[-1])
-    if verbose: print 'files found ', filesFound
-    readsList=imgSeq2NukeFormat(filesFound)
-    if verbose: print 'readsList=', (readsList)
-    createReads(readsList)
-    #layout pls k thx bai
-    return
-
-
-
-
-#add it to menu: Load all in dir - Shift+R
-#nuke.menu( 'Nodes' ).addCommand("Image/Recursive Read...","recursive_read()","Shift+R")
-pass
-
-
-
-
-
-
-############################
-###########################
-##########################
-
-
-import os
-
-def index(directory):
-    # like os.listdir, but traverses directory trees
-    stack = [directory]
-    files = []
-    while stack:
-        directory = stack.pop()
-        for file in os.listdir(directory):
-            fullname = os.path.join(directory, file)
-            files.append(fullname)
-            if os.path.isdir(fullname) and not os.path.islink(fullname):
-                stack.append(fullname)
-    return files
-
-#for file in index("/jobs/snowpiercer/gl_41"):
-#    print file
-############################
-
-#walkPath="/jobs/snowpiercer/gl_41"
-#walkPath="/jobs/snowpiercer/sc_32"
-def walk(walkPath):
-    filesFound=[]
-    for path, dirs, files in os.walk(walkPath):
-         if dirs: 
-             for dir in dirs:
-                 filesFound.append(os.path.join(path, dir))
-    #for file in filesFound:
-       # print file
-    return filesFound
-
-
-dirlist=walk(walkPath)
-print dirlist
-files=[]
-for dir in dirlist:
-    for read in nuke.getFileNameList(dir):
-        fullRead=os.path.join(dir,read)
-        if not os.path.isdir(fullRead):
-            extension=fullRead.split('.')[-1]
-            extension=extension.split(' ')[0]
-            files.append((fullRead,extension))
-
-print files
-print len(files)  
-    #need to sort/set now
-    #sort the files 
-# there dont seem to be any duplicates!
-files = list(set(files))
-files.sort() 
-print len(files)  
-
-
-
-    #define the types:
-    def make_read(image):
-        node=nuke.createNode('Read')
-        node['file'].fromUserText('%s' % (image)) 
-        return
-
-    def make_stickynote(msg):
-        filename = open(msg,"r")
-        myLabel = filename.read(100)
-        filename.close()
-        finalLabel=("%s\n%s") % (msg,myLabel)
-        node=nuke.createNode('StickyNote')
-        node['label'].setValue(finalLabel)
-        return
-
-    def make_camera(msg):
-        node=nuke.createNode('Camera2')
-        #read_from_file
-        node['file'].setValue(msg)
-        node['label'].setValue(msg)
-        return
-
-    def make_readgeo(msg):
-        node=nuke.createNode('ReadGeo2')
-        #read_from_file
-        node['file'].setValue(msg)
-        node['label'].setValue(msg)
-        return   
-
-    #nodedir={'dpx':make_read,'db':make_stickynote}
-    extRead=['dpx', 'exr','iff', 'jpg','mov','qt','png','tif','tiff']
-    extCamera=['cam']#I think!
-    extReadGeo=['fbx', 'obj']#fbx can contain objects as well as cameras... so load object
-    extStickyNote=['xml','txt']
-
-    #'xml' in extStickyNote
-    extIgnore=[]
-    #['ma', 'mel', 'meta','nk','nk~', 'pfcp', 'pfmp','rv', 'svn-base', 'svn/all-wcprops', 'svn/entries', 'swatches', 'tmp', 'vars', 'xmp', 'zip']
-#now deal with the types:
-exlist=[]
-for file,extension in files:
-    if extension in extRead:
-        pass#make_read(file)
-    elif extension in extStickyNote:
-        pass#make_stickynote(file)
-    elif extension in extCamera:
-        pass#make_camera(file)
-    elif extension in extReadGeo:
-        make_readgeo(file)
-    else:
-     exlist.append(file)
-
-if exlist:
-    finalLabel="Couldn't load\n"
-    for line in exlist:
-        finalLabel+=line+'\n'
-    node=nuke.createNode('StickyNote')
-    node['label'].setValue(finalLabel)
-
-
-#ask if we want to sort
-#highlight duplicates
-pass
-
-
-
-
-###############################################################
-#########################################
-# m_load_all_in_directory
-# 
-#
-#
-#
-# copy/ paste should access this script, esp if pasting a directory. It should ask "do you want to recursively load files?"
-# then find the files
-# then ask which we want to load (if there's more than one type).
-#
-
-def recursive_read():
-    import os, re, nuke
-    verbose=True
-    nameList=[]
-    filesFound=[]
-    ReadList=[]
-    inStereo=True
-    stereoReplace=[('_re_','_le_'),(os.sep+'right'+os.sep,os.sep+'left'+os.sep),('_right_','_left_'),('_right-','_left-')] # (source,replace) for all right to left conversions needed to match paths and filenames
-
-
-
-
-
-    def split_image_sequences(path, files):
-      if verbose: print path
-      #Get a list of unique names in file
-      for i in files:
-          sp=i.split('.')
-          name=sp[0]
-          ext=sp[-1]
-          name2CheckFor=str(name)+'.'+str(ext)
-          if name2CheckFor not in nameList:
-              nameList.append(name2CheckFor)
-      for n in nameList:
-          curList=[]
-          for i in files:
-              if not str(path).endswith(os.sep):
-                path+=os.sep#can this go outside loop?
-              if verbose: print path
-  
-              if n.split('.')[0] in i:
-                  if n.split('.')[-1] in i:
-                      curList.append(path+i)
-          if curList:
-              filesFound.append(curList)
-          filesFound.sort()
-      return filesFound
-
-    def imgSeq2NukeFormat(filesFound):
-        for ff in filesFound:
-          if verbose: print 'file found:', ff
-          #SHOULDN'T NEED TO LOOP AS SHOULD BE A SORTED LIST BUT THIS IS FAILING FOR SOME REASON SO WORKING THROUGH LIST TO GET START AND END
-          #UNCOMMENT THE NEXT 2 LINES AND COMMENT TO ###END MINMAX###
-          #start=ff[0].split('.')[-2]
-          #end=ff[-1].split('.')[-2]
-          minMax=[]
-          for i in ff:
-              frames=i.split('.')[-2]
-              minMax.append(frames)
-          start=min(minMax)
-          end=max(minMax)
-          ###END MINMAX###
-          if verbose:
-              print 'start ', start, 'end ', end
-
-          #move on and ignore if the file is a hidden file
-          if ff[0].split(os.sep)[-1].startswith('.'):
-              print 'hidden file skipped'
-          #path=(ff[0].split(os.sep))[0]
-          path=os.path.dirname(ff[0])
-          print "path=", path
-          splitFiles= ff[0].split('.')
-          print "splitFiles=", splitFiles
-          name=splitFiles[0]
-
-
-          padNum=splitFiles[-2]
-          if padNum.isdigit():
-              padding =len(splitFiles[-2])*'#'
-          else:
-              padding=''
-          ext=splitFiles[-1]
-      
-          if padding:
-              readFile=path+name+'.'+padding+'.'+ext+' '+start+'-'+end
-          else:
-              readFile=path+name+'.'+ext
-          ReadList.append(readFile)
-        return ReadList   
-
-    def stereoMatch(fileName):
-      #replace right strings with left strings to match paths and files
-      for i in range(len(stereoReplace)):
-        pattern = re.compile(stereoReplace[i][0])
-        fileName = pattern.sub(stereoReplace[i][1], fileName)
-
-      return fileName
-
-    def createReads(ReadList):
-      for r in ReadList:
-          if r.split(' ')[0][-3:] not in ('obj', 'fbx', 'sfx'):
-              if inStereo:
-                 if '%sre%s'%(os.sep,os.sep) in r:
-                    r_left=stereoMatch(r)
-                    rnleft=nuke.createNode('Read')
-                    rnright=nuke.createNode('Read')
-                    jv=nuke.createNode('JoinViews')
-                    rnleft['file'].fromUserText(r_left)
-                    rnright['file'].fromUserText(r)
-                    jv.setInput(0,rnleft)
-                    jv.setInput(1,rnright)
-                 elif '%sle%s'%(os.sep,os.sep) not in r:
-                    rn=nuke.createNode('Read')
-                    rn['file'].fromUserText(r)
-              else:
-                 rn=nuke.createNode('Read')
-                 rn['file'].fromUserText(r)
-          else:
-              rn=nuke.createNode('ReadGeo')
-              rn.setInput(0,None)
-              rn['file'].fromUserText(r)
-          #rn.setSelected(False)
-          #createdNodes.append(rn)
-      #for i in createdNodes: print i['file'].getValue()
-
-
-
-
-
-    walkPath=nuke.getClipname('Choose Folder', multiple= False)
-    if os.path.isfile(walkPath):
-        walkPath=os.path.split(walkPath)[0]
-    if verbose:
-        print 'walkPath=',walkPath
-    for i in os.walk(walkPath):
-         filesFound= split_image_sequences(i[0], i[-1])
-    if verbose:
-        print 'files found=', filesFound
-    readsList=imgSeq2NukeFormat(filesFound)
-    if verbose:
-        print 'readsList=', readsList
-    createReads(readsList)
-    #layout pls k thx bai
-    return
-
-
-#add it to menu: Load all in dir = Shift+R
-nuke.menu( 'Nodes' ).addCommand("Image/Recursive Read...","recursive_read()","Shift+R")
-
-
-#EXAMPLES:
-searchdir= "/mnt/projects/apw/edit/shots/"
-for node in nuke.selectedNodes():
-    recursive_read_sd.recursive_read(walkPaths= searchdir, maxdepth= 0, extRead= ['.mov'], includeString= os.path.basename(node['file'].value())[:11], excludeString= None, latest= False)
-
-'''
-pass
-
-
 
 
 

@@ -1,1 +1,1 @@
-from averages import *
+from .averages import moo
