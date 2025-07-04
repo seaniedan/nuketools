@@ -18,7 +18,7 @@ testing= False
 def copy_to_clipboard(clipboard_text):
     """
     moves text to copy buffer
-    fixed for nuke 11
+    fixed for nuke 16
     :param clipboard_text: str
     :return: none
     """

@@ -15,7 +15,9 @@ seanscripts_node_menu = nuke.menu('Nodes').addMenu(SEANSCRIPTS, icon="SeanScript
 
 # Add Gizmos and Groups to Nodes/SeanScripts menu
 import load_gizmos
-load_gizmos.load_gizmos(node_menu=seanscripts_node_menu)
+print("Loading gizmos...")
+stats = load_gizmos.load_gizmos(node_menu=seanscripts_node_menu)
+print(f"Gizmo loading complete: {stats['loaded_gizmos']} gizmos loaded")
 
 # add useful autolabels
 import autolabel_sd

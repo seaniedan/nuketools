@@ -9,7 +9,7 @@ def copy_framelist():
     def copy_to_clipboard(clipboard_text):
         """
         moves text to copy buffer
-        fixed for nuke 11
+        fixed for Nuke 16
         :param clipboard_text: str
         :return: none
         """
