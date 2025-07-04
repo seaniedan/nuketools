@@ -1,7 +1,7 @@
 Group {
  name ITransform_sd1
  tile_color 0xaaffffff
- help "ITransform_sd is like TransformMasked but uses a soft warp where the control mask is transparent. By Sean Danischevsky"
+ help "Copyright 2025 Sean Danischevsky"
  selected true
  mapsize {0.15 0.15}
  addUserKnob {20 ITransform_sd t "Like TransformMasked, but does soft warp transitions where the control mask is transparent."}

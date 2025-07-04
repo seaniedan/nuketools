@@ -1,8 +1,8 @@
 Group {
 inputs 2
  tile_color 0xaaffffff
- help "Copyright 2022 Sean Danischevsky"
-name Common_sd1
+ help "Copyright 2025 Sean Danischevsky"
+ name Common_sd1
 help "Compare a painted image to the original, so you can put the different parts over the original. By Sean Danischevsky 2004..2011..2015. "
 selected true
 addUserKnob {20 Common_sd}

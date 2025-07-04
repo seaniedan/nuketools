@@ -1,7 +1,7 @@
 Group {
  name Compare_sd1
  tile_color 0xaaffffff
- help "Compare two images. By Sean Danischevsky 2004...2011...2015...2020..."
+ help "Copyright 2025 Sean Danischevsky"
  label "Range: \[value FrameRange1.first_frame]-\[value FrameRange1.last_frame]"
  selected true
  addUserKnob {20 Compare_sd t "by Sean Danischevsky 2017+\nsean@danischevsky.com"}

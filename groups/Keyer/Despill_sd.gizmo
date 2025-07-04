@@ -1,7 +1,7 @@
 Group {
  name Despill_sd1
  tile_color 0xaaffffff
- help "Despill and replace lost light with color or optional background\nby Sean Danischevsky 2012\n\nPlug source image into 'fg'.\nOptionally, add 'bg' image to use this instead of replace colour.\nAttatch a 'spillSource' to use that as the basis of the spill matte (e.g. use a denoised or graded version of the input)."
+ help "Copyright 2025 Sean Danischevsky"
  label "\[? spillColor.r \"red \" \"\"]\[? spillColor.g \"green \" \"\"]\[? spillColor.b \"blue\" \"\"]"
  selected true
  addUserKnob {20 despill_sd}

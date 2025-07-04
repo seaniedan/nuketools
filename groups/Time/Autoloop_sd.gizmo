@@ -1,7 +1,7 @@
 Group {
  name Autoloop_sd1
  tile_color 0xaaffffff
- help "Copyright 2022 Sean Danischevsky"
+ help "Copyright 2025 Sean Danischevsky"
  selected true
  addUserKnob {20 AutoFrameLoop}
  addUserKnob {7 relativeOverlap l "relative overlap" R 0 0.5}

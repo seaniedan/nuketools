@@ -2,7 +2,7 @@
 """
 Gizmo Sanitization and Conversion Tool
 
-This tool converts .gizmo files to .nk Group format with standardized naming,
+This tool converts .gizmo files to .gizmo Group format with standardized naming,
 help text, and icon handling. It can process single files or entire directories.
 
 Features:
@@ -300,6 +300,13 @@ def sanitize_gizmo(gizmo_filepath, suffix=None, tile_color=None, help=None, rena
     try:
         logger.info(f'Processing: {gizmo_filepath}')
 
+        # Check if this is actually a file
+        if os.path.isdir(gizmo_filepath):
+            return False, f"Cannot process directory as file: {gizmo_filepath}"
+        
+        if not os.path.isfile(gizmo_filepath):
+            return False, f"Path is not a file: {gizmo_filepath}"
+
         # Load config for the directory containing this gizmo
         gizmo_dir = os.path.dirname(gizmo_filepath)
         config = load_config_for_directory(gizmo_dir)
@@ -328,7 +335,7 @@ def sanitize_gizmo(gizmo_filepath, suffix=None, tile_color=None, help=None, rena
 
         # Determine output path
         gizmo_dir = os.path.dirname(gizmo_filepath)
-        output_filepath = os.path.join(gizmo_dir, f"{sanitized_filename}.nk")
+        output_filepath = os.path.join(gizmo_dir, f"{sanitized_filename}.gizmo")
         
         # Handle renaming
         if gizmo_filepath != output_filepath:
@@ -397,6 +404,7 @@ def sanitize_directory(directory_path, suffix=None, tile_color=None, help=None, 
         for filename in files:
             if filename.endswith('.gizmo'):
                 gizmo_path = os.path.join(root, filename)
+                logger.debug(f"Processing file: {gizmo_path}")
                 results["total"] += 1
                 
                 success, message = sanitize_gizmo(
@@ -416,29 +424,52 @@ def sanitize_directory(directory_path, suffix=None, tile_color=None, help=None, 
     return results
 
 
-def show_file_dialog():
-    """Show file dialog to select a gizmo file."""
+def sanitize_gizmos_unified():
+    """
+    Unified function to sanitize gizmos - handles files, directories, and selections.
+    
+    This function can process:
+    - Single gizmo files
+    - Multiple selected gizmo files
+    - Entire directories
+    - Mixed selections (files + directories)
+    """
     try:
         import nuke
-        gizmo_file = nuke.getFilename("Select Gizmo File", "*.gizmo")
-        if gizmo_file:
-            return sanitize_gizmo(gizmo_file)
-        return False, "No file selected"
-    except ImportError:
-        return False, "Nuke not available for file dialog"
-
-
-def show_directory_dialog():
-    """Show directory dialog to select gizmo directory."""
-    try:
-        import nuke
-        directory = nuke.getFilename("Select Gizmo Directory", "")
-        if directory and os.path.isdir(directory):
-            # Load config for this directory
-            config = load_config_for_directory(directory)
-            results = sanitize_directory(directory)
+        
+        # Check if there are selected nodes that might be gizmos
+        selected_nodes = nuke.selectedNodes()
+        gizmo_files = []
+        
+        # Look for gizmo files in selected nodes
+        for node in selected_nodes:
+            if node.Class() == 'Group':
+                # Check if this group has a gizmo file
+                node_file = node['file'].value()
+                if node_file and node_file.endswith('.gizmo'):
+                    gizmo_files.append(node_file)
+        
+        if gizmo_files:
+            # Process selected gizmo files
+            logger.info(f"Found {len(gizmo_files)} gizmo files in selected nodes")
+            results = sanitize_multiple_files(gizmo_files)
+        else:
+            # Show file/directory selection dialog
+            paths = nuke.getFilename("Select Gizmo Files or Directory", "*.gizmo", multiple=True)
+            if not paths:
+                message = "No files or directory selected"
+                try:
+                    nuke.message(message)
+                except:
+                    print(message)
+                return False, message
             
-            # Show summary
+            # Handle multiple selections
+            all_paths = paths if isinstance(paths, list) else [paths]
+            results = sanitize_multiple_paths(all_paths)
+        
+        # Show summary
+        if results:
             summary = f"Processed {results['total']} gizmos:\n"
             summary += f"  Success: {results['success']}\n"
             summary += f"  Errors: {len(results['errors'])}\n"
@@ -451,29 +482,102 @@ def show_directory_dialog():
                     summary += f"  ... and {len(results['errors']) - 5} more\n"
             
             logger.info(summary)
+            
+            # Show results in Nuke message dialog
+            try:
+                nuke.message(summary)
+            except:
+                # Fallback if nuke.message fails
+                print(summary)
+            
             return True, summary
-        return False, "No directory selected"
+        
+        # Show message when no gizmos found
+        message = "No gizmos found to process"
+        try:
+            nuke.message(message)
+        except:
+            print(message)
+        return False, message
+        
     except ImportError:
-        return False, "Nuke not available for directory dialog"
+        return False, "Nuke not available"
 
 
-# Menu functions for Nuke integration
-def sanitize_single_gizmo():
-    """Menu function to sanitize a single gizmo file."""
-    success, message = show_file_dialog()
-    if success:
-        logger.info(f"Success: {message}")
-    else:
-        logger.error(f"Failed: {message}")
+def sanitize_multiple_paths(paths):
+    """
+    Sanitize multiple paths (files and/or directories).
+    
+    Args:
+        paths: List of file or directory paths
+    
+    Returns:
+        dict: Summary of results
+    """
+    results = {
+        "total": 0,
+        "success": 0,
+        "errors": [],
+        "processed": []
+    }
+    
+    for path in paths:
+        if os.path.isfile(path) and path.endswith('.gizmo'):
+            # Single gizmo file
+            success, message = sanitize_gizmo(path)
+            results["total"] += 1
+            if success:
+                results["success"] += 1
+                results["processed"].append(message)
+            else:
+                results["errors"].append(message)
+        elif os.path.isdir(path):
+            # Directory - process all gizmos in it
+            dir_results = sanitize_directory(path)
+            if "error" in dir_results:
+                results["errors"].append(dir_results["error"])
+            else:
+                results["total"] += dir_results["total"]
+                results["success"] += dir_results["success"]
+                results["processed"].extend(dir_results["processed"])
+                results["errors"].extend(dir_results["errors"])
+        else:
+            # Invalid path
+            results["errors"].append(f"Invalid path: {path}")
+    
+    return results
 
 
-def sanitize_gizmo_directory():
-    """Menu function to sanitize all gizmos in a directory."""
-    success, message = show_directory_dialog()
-    if success:
-        logger.info(f"Success: {message}")
-    else:
-        logger.error(f"Failed: {message}")
+def sanitize_multiple_files(file_paths):
+    """
+    Sanitize multiple gizmo files.
+    
+    Args:
+        file_paths: List of gizmo file paths
+    
+    Returns:
+        dict: Summary of results
+    """
+    results = {
+        "total": 0,
+        "success": 0,
+        "errors": [],
+        "processed": []
+    }
+    
+    for file_path in file_paths:
+        if os.path.isfile(file_path) and file_path.endswith('.gizmo'):
+            success, message = sanitize_gizmo(file_path)
+            results["total"] += 1
+            if success:
+                results["success"] += 1
+                results["processed"].append(message)
+            else:
+                results["errors"].append(message)
+        else:
+            results["errors"].append(f"Invalid gizmo file: {file_path}")
+    
+    return results
 
 
 if __name__ == '__main__':
@@ -481,17 +585,22 @@ if __name__ == '__main__':
     import sys
     
     if len(sys.argv) > 1:
-        if os.path.isfile(sys.argv[1]):
-            success, message = sanitize_gizmo(sys.argv[1])
+        path = sys.argv[1]
+        print(f"Processing path: {path}")
+        print(f"Is file: {os.path.isfile(path)}")
+        print(f"Is directory: {os.path.isdir(path)}")
+        
+        if os.path.isfile(path):
+            success, message = sanitize_gizmo(path)
             print(f"{'SUCCESS' if success else 'ERROR'}: {message}")
-        elif os.path.isdir(sys.argv[1]):
-            results = sanitize_directory(sys.argv[1])
+        elif os.path.isdir(path):
+            results = sanitize_directory(path)
             print(f"Processed {results['total']} gizmos: {results['success']} success, {len(results['errors'])} errors")
         else:
-            print(f"Path not found: {sys.argv[1]}")
+            print(f"Path not found: {path}")
     else:
         print("Usage: python save_gizmos.py <gizmo_file_or_directory>")
-        print("Or run from Nuke menu: SDNukeTools > Python > Sanitize Gizmo / Sanitize Gizmo Directory")
+        print("Or run from Nuke menu: SDNukeTools > Python > Sanitize Gizmos")
 
 
 

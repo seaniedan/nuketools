@@ -1,7 +1,7 @@
 Group {
  name Grain_sd1
  tile_color 0xaaffffff
- help "Adds synthetic grain. Push \"presets\" to get predefined types of grain, these are the correct size for 2K scans.\n\nYou can also adjust the sliders to match a sample piece of grain. Find a sample with a rather constant background, blur it to remove the grain, and use as input to this. View with a wipe in the viewer so you can make a match. It helps to view and match each of the red, green, blue separately."
+ help "Copyright 2025 Sean Danischevsky"
  selected true
  mapsize {0.15 0.15}
  addUserKnob {20 Grain_sd}

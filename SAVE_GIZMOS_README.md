@@ -1,11 +1,13 @@
 # Sanitize Gizmos Tool
 
-A comprehensive tool for converting `.gizmo` files to `.nk` Group format with standardized naming, help text, and icon handling.
+Converts `.gizmo` files to Group format with standardized naming, help text, and icon handling.
 
 ## Features
 
-- **Menu Integration**: Access via Nuke menu "SDNukeTools" > "Python" > "Sanitize Gizmo" or "Sanitize Gizmo Directory"
-- **File Browser Dialogs**: Select files/directories through Nuke's native file browser
+- **Unified Interface**: Single menu item handles files, directories, and selections
+- **Smart Detection**: Automatically detects selected gizmo nodes in Nuke
+- **Flexible Selection**: Choose single files, multiple files, or entire directories
+- **File Browser Integration**: Select files/directories through Nuke's native file browser
 - **Automatic Icon Copying**: Copies default icons from nuketools icons folder
 - **Unified Configuration**: Uses `gizmo_config.py` for settings
 - **Error Handling**: Comprehensive error reporting with summary
@@ -15,8 +17,12 @@ A comprehensive tool for converting `.gizmo` files to `.nk` Group format with st
 ## Usage
 
 ### From Nuke Menu
-1. **Single Gizmo**: "SDNukeTools" > "Python" > "Sanitize Gizmo" - Opens file dialog to select a `.gizmo` file
-2. **Directory**: "SDNukeTools" > "Python" > "Sanitize Gizmo Directory" - Opens directory dialog to process all `.gizmo` files
+**"SDNukeTools" > "Python" > "Sanitize Gizmos"** - Unified interface that handles:
+
+1. **Selected Nodes**: If gizmo nodes are selected in Nuke, processes their files automatically
+2. **File Selection**: Opens file dialog to select single or multiple `.gizmo` files
+3. **Directory Selection**: Opens directory dialog to process all `.gizmo` files in a directory
+4. **Mixed Selection**: Can handle combinations of files and directories
 
 ### Command Line
 ```bash
@@ -71,7 +77,7 @@ project/
 ## What It Does
 
 ### File Conversion
-- Converts `.gizmo` files to `.nk` Group format
+- Converts `.gizmo` files from Gizmo to Group format
 - Sanitizes filenames (ASCII only, valid characters)
 - Adds standardized suffix (e.g., `_sd`)
 - Converts internal "Gizmo" format to "Group" format
@@ -108,7 +114,7 @@ project/
       "total": 10,           # Total gizmos found
       "success": 8,          # Successfully processed
       "errors": ["error1", "error2"],  # Error messages
-      "processed": ["file1.nk", "file2.nk"]  # Success messages
+      "processed": ["file1.gizmo", "file2.gizmo"]  # Success messages
   }
   ```
 
@@ -119,7 +125,7 @@ project/
 - Can be single files or directories
 
 ### Output
-- `.nk` files (Nuke Group format)
+- `.gizmo` files (Nuke Group format)
 - Icons copied to same directory as gizmo
 - Original files moved/backed up based on settings
 
@@ -170,12 +176,12 @@ results = save_gizmos.sanitize_directory(
 ```
 
 ### Menu Integration
-The tool automatically adds menu items to the "SDNukeTools" > "Python" menu in Nuke:
-- "Sanitize Gizmo" - Single file conversion
-- "Sanitize Gizmo Directory" - Batch directory conversion
+The tool automatically adds a menu item to the "SDNukeTools" > "Python" menu in Nuke:
+- "Sanitize Gizmos" - Unified interface for all gizmo sanitization needs
 
 ## Version History
 
+- **v2.2**: Unified interface - single function handles files, directories, and selections
 - **v2.1**: Renamed functions and menu items to use "sanitize" terminology
 - **v2.0**: Complete rewrite with menu integration, unified config, error handling
 - **v1.0**: Original basic gizmo conversion functionality 
