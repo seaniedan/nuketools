@@ -1,10 +1,8 @@
 Group {
-name Dilate_sd1
+ name Dilate_sd1
  tile_color 0xaaffffff
- help "Copyright 2022 Sean Danischevsky"
+ help "Copyright 2025 Sean Danischevsky"
 selected true
-xpos 1380
-ypos -257
 addUserKnob {20 Dilate_sd}
 addUserKnob {41 channels l "Layer Copy" T Copy1.channels}
 addUserKnob {7 size l "erode / dilate size" R -25 25}

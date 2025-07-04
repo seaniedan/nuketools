@@ -30,4 +30,12 @@ INCLUDE_CATEGORIES = []
 
 # Categories to exclude
 # Example: ['Deprecated', 'Old']
-EXCLUDE_CATEGORIES = [] 
+EXCLUDE_CATEGORIES = []
+
+# Gizmo conversion settings for personal gizmos
+GIZMO_CONVERSION = {
+    "suffix": "_sd",
+    "tile_color": "0xaaffffff",
+    "help": "Copyright Sean Danischevsky",
+    "default_icon": "SeanScripts.png"
+} 

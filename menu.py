@@ -16,6 +16,7 @@ sdnuketools_node_menu = nuke.menu('Nodes').addMenu(SDNUKETOOLS, icon="SeanScript
 # These items always run
 
 # Add Gizmos and Groups to Nodes/SDNukeTools menu
+import save_gizmos
 import load_gizmos
 print("Loading seaniedan nuketools gizmos.")
 stats = load_gizmos.load_gizmos(node_menu=sdnuketools_node_menu)
@@ -406,6 +407,10 @@ sdnuketools_menu.addCommand("Python/Print Nuke Paths",
 #print python modules
 sdnuketools_menu.addCommand("Python/Print Python Modules", 
     "import print_python_modules_sd; print_python_modules_sd.print_python_modules()")
+
+# Add save gizmo tools to SDNukeTools menu
+sdnuketools_menu.addCommand("Python/Save Gizmo", "save_gizmos.save_single_gizmo()", icon="SeanScripts.png")
+sdnuketools_menu.addCommand("Python/Save Gizmo Directory", "save_gizmos.save_gizmo_directory()", icon="SeanScripts.png")
 
 #end
 del(sdnuketools_menu)
