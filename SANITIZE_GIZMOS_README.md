@@ -27,21 +27,21 @@ Converts `.gizmo` files to Group format with standardized naming, help text, and
 ### Command Line
 ```bash
 # Process single file
-python repos/nuketools/python/save_gizmos.py /path/to/file.gizmo
+python repos/nuketools/python/sanitize_gizmos.py /path/to/file.gizmo
 
 # Process directory
-python repos/nuketools/python/save_gizmos.py /path/to/gizmo/directory
+python repos/nuketools/python/sanitize_gizmos.py /path/to/gizmo/directory
 ```
 
 ### Programmatic
 ```python
-import save_gizmos
+import sanitize_gizmos
 
 # Process single gizmo
-success, message = save_gizmos.sanitize_gizmo("/path/to/file.gizmo")
+success, message = sanitize_gizmos.sanitize_gizmo("/path/to/file.gizmo")
 
 # Process directory
-results = save_gizmos.sanitize_directory("/path/to/directory")
+results = sanitize_gizmos.sanitize_directory("/path/to/directory")
 ```
 
 ## Configuration
@@ -139,7 +139,7 @@ project/
 
 ### Common Issues
 
-1. **Import Errors**: Ensure `save_gizmos.py` is in the `repos/nuketools/python` directory
+1. **Import Errors**: Ensure `sanitize_gizmos.py` is in the `repos/nuketools/python` directory
 2. **Config Not Found**: Tool will use defaults if no `gizmo_config.py` found
 3. **Icon Not Found**: Check that `SeanScripts.png` exists in nuketools icons
 4. **Permission Errors**: Ensure write permissions to output directories
@@ -164,10 +164,10 @@ The tool uses Python's logging module. Set `LOG_LEVEL` in config:
 ### Basic Usage
 ```python
 # Convert single gizmo with default settings
-success, message = save_gizmos.sanitize_gizmo("my_gizmo.gizmo")
+success, message = sanitize_gizmos.sanitize_gizmo("my_gizmo.gizmo")
 
 # Convert directory with custom settings
-results = save_gizmos.sanitize_directory(
+results = sanitize_gizmos.sanitize_directory(
     "/path/to/gizmos",
     suffix="_custom",
     tile_color="0xff0000ff",

@@ -94,7 +94,7 @@ def load_config_for_directory(directory_path):
 CONFIG = None
 
 # Default nuketools icons path
-NUKETOOLS_ICONS = os.path.join(os.path.dirname(__file__), "..", "icons")
+NUKETOOLS_ICONS = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "icons"))
 
 
 def get_year():
@@ -152,7 +152,7 @@ def sanitise_gizmo_name(potential_gizmo_name, suffix):
 
 
 def copy_default_icon(gizmo_name, target_dir, config=None):
-    """Copy default icon from nuketools to target directory."""
+    """Copy default icon from nuketools to target directory only if no icon exists."""
     if config is None:
         config = CONFIG or {}
         
@@ -168,14 +168,22 @@ def copy_default_icon(gizmo_name, target_dir, config=None):
         return False
     
     # Try different icon formats
-    icon_formats = ['.png', '.jpg', '.jpeg', '.tiff', '.tif']
+    icon_formats = ['.png'] #, '.jpg', '.jpeg', '.tiff', '.tif']
     base_name = sanitise_gizmo_name(gizmo_name, config.get("suffix", "_sd"))
     
+    # Check if any icon already exists for this gizmo
+    for fmt in icon_formats:
+        existing_icon = os.path.join(target_dir, f"{base_name}{fmt}")
+        if os.path.exists(existing_icon):
+            logger.info(f"Icon already exists, skipping: {existing_icon}")
+            return True  # Return True since an icon exists
+    
+    # No existing icon found, copy the default one
     for fmt in icon_formats:
         target_icon = os.path.join(target_dir, f"{base_name}{fmt}")
         try:
             shutil.copy2(source_icon, target_icon)
-            logger.info(f"Copied default icon: {target_icon}")
+            logger.info(f"Copied default icon {source_icon} to: {target_icon}")
             return True
         except Exception as e:
             logger.debug(f"Failed to copy icon with format {fmt}: {e}")
@@ -426,47 +434,29 @@ def sanitize_directory(directory_path, suffix=None, tile_color=None, help=None, 
 
 def sanitize_gizmos_unified():
     """
-    Unified function to sanitize gizmos - handles files, directories, and selections.
+    Unified function to sanitize gizmos using Nuke's file browser.
     
-    This function can process:
+    This function shows a file browser dialog to let users select:
     - Single gizmo files
-    - Multiple selected gizmo files
-    - Entire directories
-    - Mixed selections (files + directories)
+    - Multiple gizmo files
+    - Directories containing gizmos
     """
     try:
         import nuke
         
-        # Check if there are selected nodes that might be gizmos
-        selected_nodes = nuke.selectedNodes()
-        gizmo_files = []
+        # Show file/directory selection dialog
+        paths = nuke.getFilename("Select Gizmo Files or Directory", "*.gizmo", multiple=True)
+        if not paths:
+            message = "No files or directory selected"
+            try:
+                nuke.message(message)
+            except:
+                print(message)
+            return False, message
         
-        # Look for gizmo files in selected nodes
-        for node in selected_nodes:
-            if node.Class() == 'Group':
-                # Check if this group has a gizmo file
-                node_file = node['file'].value()
-                if node_file and node_file.endswith('.gizmo'):
-                    gizmo_files.append(node_file)
-        
-        if gizmo_files:
-            # Process selected gizmo files
-            logger.info(f"Found {len(gizmo_files)} gizmo files in selected nodes")
-            results = sanitize_multiple_files(gizmo_files)
-        else:
-            # Show file/directory selection dialog
-            paths = nuke.getFilename("Select Gizmo Files or Directory", "*.gizmo", multiple=True)
-            if not paths:
-                message = "No files or directory selected"
-                try:
-                    nuke.message(message)
-                except:
-                    print(message)
-                return False, message
-            
-            # Handle multiple selections
-            all_paths = paths if isinstance(paths, list) else [paths]
-            results = sanitize_multiple_paths(all_paths)
+        # Handle multiple selections
+        all_paths = paths if isinstance(paths, list) else [paths]
+        results = sanitize_multiple_paths(all_paths)
         
         # Show summary
         if results:
@@ -599,7 +589,7 @@ if __name__ == '__main__':
         else:
             print(f"Path not found: {path}")
     else:
-        print("Usage: python save_gizmos.py <gizmo_file_or_directory>")
+        print("Usage: python sanitize_gizmos.py <gizmo_file_or_directory>")
         print("Or run from Nuke menu: SDNukeTools > Python > Sanitize Gizmos")
 
 
