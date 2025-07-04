@@ -7,16 +7,18 @@ import os
 nuke.pluginAddPath(('gizmos', 'groups', 'python', 'icons', 'images', 'ToolSets'))
 
 #menu naming
-SEANSCRIPTS="SeanScripts"
-seanscripts_node_menu = nuke.menu('Nodes').addMenu(SEANSCRIPTS, icon="SeanScripts.png")
+SDNUKETOOLS="SDNukeTools"
+sdnuketools_node_menu = nuke.menu('Nodes').addMenu(SDNUKETOOLS, icon="SeanScripts.png")
+
+
 
 ####################################################
 # These items always run
 
-# Add Gizmos and Groups to Nodes/SeanScripts menu
+# Add Gizmos and Groups to Nodes/SDNukeTools menu
 import load_gizmos
-print("Loading gizmos...")
-stats = load_gizmos.load_gizmos(node_menu=seanscripts_node_menu)
+print("Loading seaniedan nuketools gizmos.")
+stats = load_gizmos.load_gizmos(node_menu=sdnuketools_node_menu)
 print(f"Gizmo loading complete: {stats['loaded_gizmos']} gizmos loaded")
 
 # add useful autolabels
@@ -73,7 +75,7 @@ del(nodeClass)
 ####################################################
 ####################################################
 #Nuke Menu
-#File, Edit, Workspace, Viewer, Render, Cache, Help .... Seanscripts
+#File, Edit, Workspace, Viewer, Render, Cache, Help .... SDNukeTools
 
 
 #File Menu
@@ -310,103 +312,103 @@ del(cache_menu)
 
 
 ######################
-#create seanscripts menu 
-seanscripts_menu= nuke.menu('Nuke').addMenu(SEANSCRIPTS)
+#create SDNukeTools menu 
+sdnuketools_menu= nuke.menu('Nuke').addMenu(SDNUKETOOLS)
 
 #backdrops tools
-seanscripts_menu.addCommand("Backdrop/Reformat Backdrop Nodes",#replaced by changing shift+a version
+sdnuketools_menu.addCommand("Backdrop/Reformat Backdrop Nodes",#replaced by changing shift+a version
     "import backdrop_sd; backdrop_sd.reformat_backdrops(nuke.selectedNodes('BackdropNode'))")
-seanscripts_menu.addCommand("Backdrop/Scan Nodes for Backdrop collection",
+sdnuketools_menu.addCommand("Backdrop/Scan Nodes for Backdrop collection",
     "backdrop_sd.scan_nodes_for_collection(nuke.selectedNodes())")
-seanscripts_menu.addCommand("Backdrop/Show Backdrop collection",
+sdnuketools_menu.addCommand("Backdrop/Show Backdrop collection",
     "backdrop_sd.show_collection_as_backdrops()")
 
 #create message or image in the nodegraph
-seanscripts_menu.addCommand("Other/Create message or image in the Node Graph",
+sdnuketools_menu.addCommand("Other/Create message or image in the Node Graph",
     "import write_name_in_dag_sd;write_name_in_dag_sd.write_name_or_image_in_dag()")
 
 #split exrs
-seanscripts_menu.addCommand('Read/Split EXR channels',
+sdnuketools_menu.addCommand('Read/Split EXR channels',
     'import split_exrs_sd;split_exrs_sd.split_exrs()')
 
 #pick best track
-seanscripts_menu.addCommand("Transform/Pick Best Track",
+sdnuketools_menu.addCommand("Transform/Pick Best Track",
     "import tracker_median_sd; tracker_median_sd.tracker_median_sd()" )
 
 #copy animation on this frame - WIP
-seanscripts_menu.addCommand("Transform/Copy Animation Curves on this Frame (WIP)",
+sdnuketools_menu.addCommand("Transform/Copy Animation Curves on this Frame (WIP)",
     "import copy_animation_curves_on_this_frame_sd;\
     curve_dict= copy_animation_curves_on_this_frame_sd.setup(nuke.selectedNodes());copy_animation_curves_on_this_frame_sd.copy_values_to_keyframe(curve_dict, nuke.frame())" )
 
 #smooth Camera
-seanscripts_menu.addCommand("3d/Smooth Selected Cameras",
+sdnuketools_menu.addCommand("3d/Smooth Selected Cameras",
     "import create_smooth_camera; create_smooth_camera.main(nuke.selectedNodes())")
 
 #smart cornerpin, mocha tracker
-seanscripts_menu.addCommand("Transform/Convert Cornerpin to smart Cornerpin or MochaTracker to Tracker",
+sdnuketools_menu.addCommand("Transform/Convert Cornerpin to smart Cornerpin or MochaTracker to Tracker",
     "import convert_CornerPin_to_Smart_CornerPin_sd;\
     convert_CornerPin_to_Smart_CornerPin_sd.fix_mocha_tracker_or_cornerpin(nuke.selectedNodes())")
 
 #Search keyboard shortcuts 
-seanscripts_menu.addCommand("Other/Search Keyboard Shortcuts",
+sdnuketools_menu.addCommand("Other/Search Keyboard Shortcuts",
     "import search_keyboard_shortcuts;\
     nuke.display('search_keyboard_shortcuts.search_keyboard_shortcuts()', None, title = 'Nuke key assignments')")
 
 #Reload files in Read, ReadGeo, OCIOCDLTransforms etc
-seanscripts_menu.addCommand("Read/Reload Files",
+sdnuketools_menu.addCommand("Read/Reload Files",
     "[node['reload'].execute() for node in nuke.selectedNodes() or nuke.allNodes() if 'reload' in node.knobs().keys()]")
 
 
-seanscripts_menu.addCommand("Read/Layout Reads by Sequence",
+sdnuketools_menu.addCommand("Read/Layout Reads by Sequence",
     "import arrange_by_sd;\
     arrange_by_sd.arrange_by(nuke.selectedNodes('Read'), sortKey= lambda node: nuke.filename(node, nuke.REPLACE).lower(), sortDiscrete= lambda node: '_'.join(    os.path.basename(node['file'].value()) .split('_') [:3]  )  )")
 
-seanscripts_menu.addCommand("3d/Create Camera from Metadata",
+sdnuketools_menu.addCommand("3d/Create Camera from Metadata",
     "import create_camera_from_metadata_sd;\
     create_camera_from_metadata_sd.createMetaDatCam(nuke.selectedNode())")
 
 #split sequences to multiple Read nodes
-seanscripts_menu.addCommand('Read/Split Read sequence to multiple single Reads', 
+sdnuketools_menu.addCommand('Read/Split Read sequence to multiple single Reads', 
     "import split_to_frames_sd;\
     split_to_frames_sd.split_to_frames(nodes= nuke.selectedNodes('Read'))")
 
 #split sequences to Frameholds with Postage stamps
-seanscripts_menu.addCommand('Read/Split Read sequence to Frameholds with Postage stamps', 
+sdnuketools_menu.addCommand('Read/Split Read sequence to Frameholds with Postage stamps', 
     "import split_to_frames_sd;\
     split_to_frames_sd.split_to_frameholds(nodes= nuke.selectedNodes('Read'))")
 
 #set root frame range to selected reads
-seanscripts_menu.addCommand("Read/Set Frame Range to selected (or all) Reads",
+sdnuketools_menu.addCommand("Read/Set Frame Range to selected (or all) Reads",
     "import set_frame_range_to_selected_sd; set_frame_range_to_selected_sd.set_frame_range_to_selected(nuke.selectedNodes('Read') or nuke.allNodes('Read'))")
 
 #Compare Selected
-seanscripts_menu.addCommand("Other/Compare Selected",
+sdnuketools_menu.addCommand("Other/Compare Selected",
     "import stitch_sd; stitch_sd.stitch_check_sd(nuke.selectedNodes())")
 
 #Compare sequences - execute selected Compared_sd nodes
-seanscripts_menu.addCommand("Other/Analyse Input Sequences on selected Compare_sd Nodes",
+sdnuketools_menu.addCommand("Other/Analyse Input Sequences on selected Compare_sd Nodes",
     "[node['comparesequence'].execute() for node in nuke.selectedNodes('Group')]")
 
 #autocrop
-seanscripts_menu.addCommand("Transform/Put auto-crop after selected node", 
+sdnuketools_menu.addCommand("Transform/Put auto-crop after selected node", 
     "import nukescripts; nukescripts.autocrop(first= None, last= None, inc= None, layer= 'rgba')")
-seanscripts_menu.addCommand("Transform/Put un-crop after selected Crop node", 
+sdnuketools_menu.addCommand("Transform/Put un-crop after selected Crop node", 
     "import uncrop_sd; uncrop_sd.uncrop()")
 
 #print environment variables
-seanscripts_menu.addCommand("Python/Print Environment Variables", 
+sdnuketools_menu.addCommand("Python/Print Environment Variables", 
     "import print_environment_variables_sd; print_environment_variables_sd.print_environment_variables()")
 
 #print nuke paths
-seanscripts_menu.addCommand("Python/Print Nuke Paths", 
+sdnuketools_menu.addCommand("Python/Print Nuke Paths", 
     "import print_nuke_paths_sd; print_nuke_paths_sd.print_nuke_paths()")
 
 #print python modules
-seanscripts_menu.addCommand("Python/Print Python Modules", 
+sdnuketools_menu.addCommand("Python/Print Python Modules", 
     "import print_python_modules_sd; print_python_modules_sd.print_python_modules()")
 
 #end
-del(seanscripts_menu)
+del(sdnuketools_menu)
 #####################################################################################
 
 
@@ -437,7 +439,7 @@ nuke.toolbar("Nodes").findItem("Other").addCommand("Smart Backdrop",
 
 # Animation menu
 
-nuke.menu('Animation').addMenu(SEANSCRIPTS).addCommand('Copy keyframes to frame list', 
+nuke.menu('Animation').addMenu(SDNUKETOOLS).addCommand('Copy keyframes to frame list', 
     "import copy_frame_list_to_clipboard_sd;copy_frame_list_to_clipboard_sd.copy_framelist()" )
 
 

@@ -123,7 +123,7 @@ def test_logging():
 
 def find_gizmo_directories():
     """
-    Find all potential gizmo directories in the Nuke setup.
+    Find gizmo directories for nuketools only.
     
     Returns:
         list: List of absolute paths to directories containing gizmos
@@ -133,15 +133,7 @@ def find_gizmo_directories():
     # Add custom directories first
     gizmo_dirs.extend(CUSTOM_GIZMO_DIRECTORIES)
     
-    # Get the main .nuke directory
-    user_nuke_dir = os.path.expanduser("~/.nuke")
-    
-    # Check main .nuke directory
-    main_groups_dir = os.path.join(user_nuke_dir, "groups")
-    if os.path.exists(main_groups_dir):
-        gizmo_dirs.append(main_groups_dir)
-    
-    # Check repos/nuketools directory
+    # Check repos/nuketools directory only
     current_dir = os.path.dirname(__file__)
     nuketools_groups_dir = os.path.join(current_dir, "..", "groups")
     if os.path.exists(nuketools_groups_dir):
