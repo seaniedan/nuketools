@@ -1,10 +1,10 @@
-# Save Gizmos Tool
+# Sanitize Gizmos Tool
 
 A comprehensive tool for converting `.gizmo` files to `.nk` Group format with standardized naming, help text, and icon handling.
 
 ## Features
 
-- **Menu Integration**: Access via Nuke menu "SDNukeTools" > "Save Gizmo" or "Save Gizmo Directory"
+- **Menu Integration**: Access via Nuke menu "SDNukeTools" > "Python" > "Sanitize Gizmo" or "Sanitize Gizmo Directory"
 - **File Browser Dialogs**: Select files/directories through Nuke's native file browser
 - **Automatic Icon Copying**: Copies default icons from nuketools icons folder
 - **Unified Configuration**: Uses `gizmo_config.py` for settings
@@ -15,8 +15,8 @@ A comprehensive tool for converting `.gizmo` files to `.nk` Group format with st
 ## Usage
 
 ### From Nuke Menu
-1. **Single Gizmo**: "SDNukeTools" > "Save Gizmo" - Opens file dialog to select a `.gizmo` file
-2. **Directory**: "SDNukeTools" > "Save Gizmo Directory" - Opens directory dialog to process all `.gizmo` files
+1. **Single Gizmo**: "SDNukeTools" > "Python" > "Sanitize Gizmo" - Opens file dialog to select a `.gizmo` file
+2. **Directory**: "SDNukeTools" > "Python" > "Sanitize Gizmo Directory" - Opens directory dialog to process all `.gizmo` files
 
 ### Command Line
 ```bash
@@ -170,11 +170,12 @@ results = save_gizmos.sanitize_directory(
 ```
 
 ### Menu Integration
-The tool automatically adds menu items to the "SDNukeTools" menu in Nuke:
-- "Save Gizmo" - Single file conversion
-- "Save Gizmo Directory" - Batch directory conversion
+The tool automatically adds menu items to the "SDNukeTools" > "Python" menu in Nuke:
+- "Sanitize Gizmo" - Single file conversion
+- "Sanitize Gizmo Directory" - Batch directory conversion
 
 ## Version History
 
+- **v2.1**: Renamed functions and menu items to use "sanitize" terminology
 - **v2.0**: Complete rewrite with menu integration, unified config, error handling
 - **v1.0**: Original basic gizmo conversion functionality 

@@ -458,8 +458,8 @@ def show_directory_dialog():
 
 
 # Menu functions for Nuke integration
-def save_single_gizmo():
-    """Menu function to save a single gizmo file."""
+def sanitize_single_gizmo():
+    """Menu function to sanitize a single gizmo file."""
     success, message = show_file_dialog()
     if success:
         logger.info(f"Success: {message}")
@@ -467,8 +467,8 @@ def save_single_gizmo():
         logger.error(f"Failed: {message}")
 
 
-def save_gizmo_directory():
-    """Menu function to save all gizmos in a directory."""
+def sanitize_gizmo_directory():
+    """Menu function to sanitize all gizmos in a directory."""
     success, message = show_directory_dialog()
     if success:
         logger.info(f"Success: {message}")
@@ -491,7 +491,7 @@ if __name__ == '__main__':
             print(f"Path not found: {sys.argv[1]}")
     else:
         print("Usage: python save_gizmos.py <gizmo_file_or_directory>")
-        print("Or run from Nuke menu: Sean > Save Gizmo / Save Gizmo Directory")
+        print("Or run from Nuke menu: SDNukeTools > Python > Sanitize Gizmo / Sanitize Gizmo Directory")
 
 
 
