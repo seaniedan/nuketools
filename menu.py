@@ -409,7 +409,12 @@ sdnuketools_menu.addCommand("Python/Print Python Modules",
     "import print_python_modules_sd; print_python_modules_sd.print_python_modules()")
 
 # Add sanitize gizmo tool to SDNukeTools menu
-sdnuketools_menu.addCommand("Python/Sanitize Gizmos", "sanitize_gizmos.sanitize_gizmos_unified()", icon="SeanScripts.png")
+sdnuketools_menu.addCommand("Python/Sanitize Gizmos", 
+    "import sanitize_gizmos; sanitize_gizmos.sanitize_gizmos_unified()")
+
+# Add fix nuke script tool to SDNukeTools menu
+sdnuketools_menu.addCommand("Python/Fix Nuke Script", 
+    "import fix_nuke_script; fix_nuke_script.main()")
 
 #end
 del(sdnuketools_menu)
