@@ -19,8 +19,15 @@ sdnuketools_node_menu = nuke.menu('Nodes').addMenu(SDNUKETOOLS, icon="SeanScript
 import sanitize_gizmos
 import load_gizmos
 print("Loading seaniedan nuketools gizmos.")
-stats = load_gizmos.load_gizmos(node_menu=sdnuketools_node_menu)
-print(f"Gizmo loading complete: {stats['loaded_gizmos']} gizmos loaded")
+try:
+    stats = load_gizmos.load_gizmos(node_menu=sdnuketools_node_menu)
+    if stats is not None:
+        print(f"Gizmo loading complete: {stats['loaded_gizmos']} gizmos loaded")
+    else:
+        print("Gizmo loading complete: No gizmos found or error occurred")
+except Exception as e:
+    print(f"Error loading gizmos: {e}")
+    print("Gizmo loading complete: Error occurred")
 
 # add useful autolabels
 import autolabel_sd

@@ -135,10 +135,21 @@ def find_gizmo_directories():
     
     # Check repos/nuketools directory only
     current_dir = os.path.dirname(__file__)
-    nuketools_groups_dir = os.path.join(current_dir, "..", "groups")
-    if os.path.exists(nuketools_groups_dir):
-        gizmo_dirs.append(os.path.abspath(nuketools_groups_dir))
+    print(f"DEBUG: Current directory: {current_dir}")
     
+    nuketools_groups_dir = os.path.join(current_dir, "..", "groups")
+    print(f"DEBUG: Looking for groups directory at: {nuketools_groups_dir}")
+    print(f"DEBUG: Absolute path: {os.path.abspath(nuketools_groups_dir)}")
+    print(f"DEBUG: Directory exists: {os.path.exists(nuketools_groups_dir)}")
+    
+    if os.path.exists(nuketools_groups_dir):
+        abs_path = os.path.abspath(nuketools_groups_dir)
+        gizmo_dirs.append(abs_path)
+        print(f"DEBUG: Added gizmo directory: {abs_path}")
+    else:
+        print(f"DEBUG: Groups directory not found at: {nuketools_groups_dir}")
+    
+    print(f"DEBUG: Total gizmo directories found: {len(gizmo_dirs)}")
     return gizmo_dirs
 
 
@@ -168,18 +179,24 @@ def load_gizmos(node_menu=None, gizmo_directories=None):
     }
     
     logger.debug(f"Starting to scan {len(gizmo_directories)} gizmo directories")
+    print(f"DEBUG: Scanning {len(gizmo_directories)} gizmo directories")
     
     for gizmo_dir in gizmo_directories:
         if not os.path.exists(gizmo_dir):
             logger.warning(f"Gizmo directory does not exist: {gizmo_dir}")
+            print(f"DEBUG: Gizmo directory does not exist: {gizmo_dir}")
             continue
             
         logger.debug(f"Scanning for gizmos in: {gizmo_dir}")
+        print(f"DEBUG: Scanning for gizmos in: {gizmo_dir}")
         
         # Walk through all subdirectories
+        gizmo_count = 0
         for root, dirs, files in os.walk(gizmo_dir):
             for file in files:
                 if file.endswith('.gizmo'):
+                    gizmo_count += 1
+                    print(f"DEBUG: Found gizmo: {os.path.join(root, file)}")
                     stats['total_gizmos'] += 1
                     
                     try:
@@ -243,6 +260,8 @@ def load_gizmos(node_menu=None, gizmo_directories=None):
                         logger.error(f"Error loading gizmo {file}: {str(e)}")
                         stats['errors'] += 1
     
+    print(f"DEBUG: Scanning complete. Total gizmos found: {stats['total_gizmos']}")
+    print(f"DEBUG: Successfully loaded: {stats['loaded_gizmos']}")
     return stats
 
 
