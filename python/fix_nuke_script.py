@@ -5,6 +5,13 @@ import re
 BADLAYERS =   [ """add_layer {depth depth.cc depth.ZNorm depth.Zselect}""",
                 """add_layer {rgba rgba.water redguard1.glow}"""]
  
+def show_message(msg, title="Fix Nuke Script"):
+    try:
+        import nuke
+        nuke.message(msg)
+    except Exception:
+        print(msg)
+ 
 def removeBadLayers(nukeTxt, results=''): 
     global BADLAYERS
     for badLayer in BADLAYERS:
@@ -26,7 +33,7 @@ def removeBadLayers(nukeTxt, results=''):
                 nukeTxt = removeMe.sub('', nukeTxt)
  
     if results:
-        print(results)
+        show_message(results)
     return nukeTxt
  
  
@@ -39,7 +46,7 @@ def removeEmptyBraces(nukeTxt, results=''):
         nukeTxt = braces.sub('', nukeTxt)
  
     if results:
-        print("%s" % results)
+        show_message(results)
  
     return nukeTxt
  
@@ -58,7 +65,7 @@ def findLonesomeClones(nukeTxt, results=''):
             results += 'Fixed lonesome Clone. This node needs to be replaced. Renamed: FIXME%01d\n' % fixed  
  
     if results:
-        print("%s" % results)
+        show_message(results)
  
     return nukeTxt
  
@@ -66,51 +73,61 @@ def main():
     import shutil, sys
     import nuke
     import os
- 
+    from datetime import datetime
+
+    def gui_message(msg):
+        try:
+            nuke.message(msg)
+        except Exception:
+            print(msg)
+
     # Check if we're running in Nuke GUI environment
     try:
-        # Try to get file from Nuke file dialog
-        fIn = nuke.getFilename("Select Nuke script to fix", "*.nk *.nkx *.nknc")
+        fIn = nuke.getFilename("Select Nuke script to fix", "*.nk*")
         if not fIn:
-            print("No file selected. Exiting.")
+            gui_message("No file selected. Exiting.")
             return
+        in_gui = True
     except:
-        # Fallback to command line if not in Nuke
         if len(sys.argv) != 2:
             sys.exit('You must specify a nuke file to cleanup')
         fIn = sys.argv[1]
+        in_gui = False
     
-    # Verify file exists and is readable
     if not os.path.exists(fIn):
-        print(f"File not found: {fIn}")
+        gui_message(f"File not found: {fIn}")
         return
     
-    # Create backup
-    backup_path = '%s.backup' % fIn
-    shutil.copy2(fIn, backup_path)
-    print(f"Backup created: {backup_path}")
-    
-    # Read and process the file
+    # Read the file first to check for changes
     try:
         with open(fIn, 'r') as nukefile:
             nukeTxt = nukefile.read()
-        
         original_text = nukeTxt
         
-        nukeTxt = removeBadLayers(nukeTxt)                                  
-        nukeTxt = removeEmptyBraces(nukeTxt)                    
-        nukeTxt = findLonesomeClones(nukeTxt)
+        # Process the text to see if there are changes
+        processed_text = removeBadLayers(original_text)                                  
+        processed_text = removeEmptyBraces(processed_text)                    
+        processed_text = findLonesomeClones(processed_text)
         
-        # Only write if changes were made
-        if nukeTxt != original_text:
+        # Only create backup and save if there are actual changes
+        if processed_text != original_text:
+            # Create timestamped backup
+            timestamp = datetime.now().strftime("%Y-%m-%d--%H-%M")
+            base_name = os.path.splitext(fIn)[0]
+            extension = os.path.splitext(fIn)[1]
+            backup_path = f"{base_name}-bkp-{timestamp}{extension}"
+            shutil.copy2(fIn, backup_path)
+            gui_message(f"Backup created: {backup_path}")
+            
+            # Save the fixed file
             with open(fIn, 'w') as nukefile:
-                nukefile.write(nukeTxt)
-            print(f"Script fixed and saved: {fIn}")
+                nukefile.write(processed_text)
+            gui_message(f"Script fixed and saved: {fIn}")
         else:
-            print("No issues found in the script.")
+            gui_message("No issues found in the script.")
             
     except Exception as e:
-        print(f"Error processing file: {e}")
+        gui_message(f"Error processing file: {e}")
         return
  
 if __name__ == '__main__':
