@@ -18,8 +18,8 @@ Loads the 4K version (4096x3112) of the KODAK Digital LAD Test Image.
 
 ### From Menu
 The functions are available in the Nuke menu under:
-- **Nuke > SDNukeTools > Read > Load LAD Test Image (2K)**
-- **Nuke > SDNukeTools > Read > Load LAD Test Image (4K)**
+- **Nodes > Draw > Load Test Image > LAD Test Image (2K)**
+- **Nodes > Draw > Load Test Image > LAD Test Image (4K)**
 
 ### From Python Script
 ```python
