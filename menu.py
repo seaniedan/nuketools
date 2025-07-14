@@ -389,6 +389,13 @@ sdnuketools_menu.addCommand('Read/Split Read sequence to Frameholds with Postage
 sdnuketools_menu.addCommand("Read/Set Frame Range to selected (or all) Reads",
     "import set_frame_range_to_selected_sd; set_frame_range_to_selected_sd.set_frame_range_to_selected(nuke.selectedNodes('Read') or nuke.allNodes('Read'))")
 
+# Load test images
+sdnuketools_menu.addCommand("Read/Load LAD Test Image (2K)",
+    "import load_test_image_sd; load_test_image_sd.load_test_image()")
+
+sdnuketools_menu.addCommand("Read/Load LAD Test Image (4K)",
+    "import load_test_image_sd; load_test_image_sd.load_test_image_4k()")
+
 #Compare Selected
 sdnuketools_menu.addCommand("Other/Compare Selected",
     "import stitch_sd; stitch_sd.stitch_check_sd(nuke.selectedNodes())")
@@ -444,13 +451,6 @@ nuke.menu('Nodes').findItem('Image').addCommand("Read from Write",
 #st map create
 nuke.menu('Nodes').findItem('Draw').addCommand("STMap Create",
     "import stmap_create_sd; stmap_create_sd.stmap_create()", icon="Ramp.png")
-
-# Load test images
-nuke.menu('Nodes').findItem('Draw').addCommand("Load Test Image/LAD Test Image (2K)",
-    "import load_test_image_sd; load_test_image_sd.load_test_image()", icon="Read.png")
-
-nuke.menu('Nodes').findItem('Draw').addCommand("Load Test Image/LAD Test Image (4K)",
-    "import load_test_image_sd; load_test_image_sd.load_test_image_4k()", icon="Read.png")
 
 #Other
 #backdrop
