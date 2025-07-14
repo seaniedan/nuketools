@@ -445,6 +445,13 @@ nuke.menu('Nodes').findItem('Image').addCommand("Read from Write",
 nuke.menu('Nodes').findItem('Draw').addCommand("STMap Create",
     "import stmap_create_sd; stmap_create_sd.stmap_create()", icon="Ramp.png")
 
+# Load test images
+nuke.menu('Nodes').findItem('Draw').addCommand("Load Test Image/LAD Test Image (2K)",
+    "import load_test_image_sd; load_test_image_sd.load_test_image()", icon="Read.png")
+
+nuke.menu('Nodes').findItem('Draw').addCommand("Load Test Image/LAD Test Image (4K)",
+    "import load_test_image_sd; load_test_image_sd.load_test_image_4k()", icon="Read.png")
+
 #Other
 #backdrop
 nuke.toolbar("Nodes").findItem("Other").addCommand("Smart Backdrop",
