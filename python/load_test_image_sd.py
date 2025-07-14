@@ -22,7 +22,7 @@ def load_test_image():
     
     # Navigate up to the nuketools root directory and then to assets
     nuketools_root = os.path.dirname(this_dir)
-    lad_image_path = os.path.join(nuketools_root, "..", "..", "assets", 
+    lad_image_path = os.path.join(nuketools_root, "assets", 
                                  "KODAK-Digital-LAD-Test-Image-DPX-Format", 
                                  "Digital_LAD_2048x1556.dpx")
     
@@ -51,7 +51,7 @@ def load_test_image_4k():
     
     # Navigate up to the nuketools root directory and then to assets
     nuketools_root = os.path.dirname(this_dir)
-    lad_image_path = os.path.join(nuketools_root, "..", "..", "assets", 
+    lad_image_path = os.path.join(nuketools_root, "assets", 
                                  "KODAK-Digital-LAD-Test-Image-DPX-Format", 
                                  "Digital_LAD_4096x3112.dpx")
     

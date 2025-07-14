@@ -40,7 +40,7 @@ read_node = load_test_image_sd.load_test_image()
 ```
 
 ## Test Image Location
-The test images are located in:
+The test images are located in the nuketools repository at:
 - `assets/KODAK-Digital-LAD-Test-Image-DPX-Format/Digital_LAD_2048x1556.dpx` (2K)
 - `assets/KODAK-Digital-LAD-Test-Image-DPX-Format/Digital_LAD_4096x3112.dpx` (4K)
 
