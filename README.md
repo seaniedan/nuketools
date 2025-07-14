@@ -31,7 +31,6 @@ echo nuke.pluginAddPath('nuketools') >> init.py
 
 ### Verification
 After installation and restarting Nuke, you should see:
-- A **SeanScripts** menu item in the Nodes menu
 - An **SD** icon in the node panel
 - A **SDNukeTools** menu in the main Nuke menu
 
