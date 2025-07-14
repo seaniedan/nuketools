@@ -51,5 +51,5 @@ def copy_command_line_render_command_to_clipboard():
         command_to_copy= '{} -X {} {} {}'.format(execuable, nodeNames, scriptName, renderRange)
         return command_to_copy
 
-
+    nuke.scriptSave()
     copy_to_clipboard(render_command())
