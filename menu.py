@@ -29,6 +29,13 @@ except Exception as e:
     print(f"Error loading gizmos: {e}")
     print("Gizmo loading complete: Error occurred")
 
+# Add load test image functions to SDNukeTools node menu
+sdnuketools_node_menu.addCommand("Draw/Load/Kodak Digital Laboratory Aim Density (LAD) Test Image (2K)",
+    "import load_test_image_sd; load_test_image_sd.load_test_image()", icon="Read.png")
+
+sdnuketools_node_menu.addCommand("Draw/Load/Kodak Digital Laboratory Aim Density (LAD) Test Image (4K)",
+    "import load_test_image_sd; load_test_image_sd.load_test_image_4k()", icon="Read.png")
+
 # add useful autolabels
 import autolabel_sd
 
@@ -445,13 +452,6 @@ nuke.menu('Nodes').findItem('Image').addCommand("Read from Write",
 #st map create
 nuke.menu('Nodes').findItem('Draw').addCommand("STMap Create",
     "import stmap_create_sd; stmap_create_sd.stmap_create()", icon="Ramp.png")
-
-# Load test images
-nuke.menu('Nodes').findItem('Draw').addCommand("Load Test Image/LAD Test Image (2K)",
-    "import load_test_image_sd; load_test_image_sd.load_test_image()", icon="Read.png")
-
-nuke.menu('Nodes').findItem('Draw').addCommand("Load Test Image/LAD Test Image (4K)",
-    "import load_test_image_sd; load_test_image_sd.load_test_image_4k()", icon="Read.png")
 
 #Other
 #backdrop
