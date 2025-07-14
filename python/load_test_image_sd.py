@@ -61,9 +61,6 @@ def load_test_image_4k():
     # Set the file path
     read_node["file"].setValue(lad_image_path)
     
-    # Position the node in a reasonable location
-    read_node.setXYpos(0, 0)
-    
-    print(f"Loaded 4K test image: {lad_image_path}")
+     print(f"Loaded 4K test image: {lad_image_path}")
     
     return read_node 
