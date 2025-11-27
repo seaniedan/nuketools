@@ -155,159 +155,161 @@ def collectFiles():
             os.mkdir(footagePath)
 
         task = nuke.ProgressTask("Collect Files 1.2")
-        count = 0
+        try:
+            count = 0
 
-        for fileNode in nuke.allNodes():
-            if task.isCancelled():
-                cancelCollect = 1
-                break
-            count += 1
-            task.setMessage("Collecting file:   " + str(fileNode))
-            task.setProgress(count*100/len(nuke.allNodes()))
-
-
-            if checkForKnob(fileNode, 'file'):
-                if not checkForKnob(fileNode, 'Render'):
-                    fileNodePath = fileNode['file'].value()
-                    if (fileNodePath == ''):
-                        continue
-                    else:
-                        readFilename = fileNodePath.split("/")[-1]
-                        
-                        if checkForKnob(fileNode, 'first'):
-
-                            if (fileNodePath.endswith(tuple(videoExtension))):
-                                newFilenamePath = footagePath + fileNodePath.split("/")[-1]
-                                if (os.path.exists(newFilenamePath)):
-                                    print((newFilenamePath + '     DUPLICATED'))
-                                else:
-                                    if (os.path.exists(fileNodePath)):
-                                        link_file(fileNodePath, newFilenamePath)
-                                        print((newFilenamePath + '     COPIED'))                                       
-                                    else:
-                                        print((newFilenamePath + '     MISSING'))        
-
-                            else:
-                                # frame range
-                                frameFirst = fileNode['first'].value()
-                                frameLast = fileNode['last'].value()
-                                framesDur = frameLast - frameFirst
-                                
-                                if (frameFirst == frameLast):
-                                    newFilenamePath = footagePath + readFilename
-                                    if (os.path.exists(newFilenamePath)):
-                                        print((newFilenamePath + '     DUPLICATED'))
-                                    else:
-                                        if (os.path.exists(fileNodePath)):
-                                            link_file(fileNodePath, newFilenamePath)
-                                            print((newFilenamePath + '     COPIED'))                             
-                                        else:
-                                            print((newFilenamePath + '     MISSING'))
-
-                                else:
-                                    dirSeq = fileNodePath.split("/")[-2] + '/'
-                                    newFilenamePath = footagePath + dirSeq
-                                    if (os.path.exists(newFilenamePath)):
-                                        print((newFilenamePath + '     DUPLICATED'))
-                                    else:
-                                        os.mkdir(newFilenamePath)
-    
-                                    # rename sequence
-                                    for frame in range(framesDur + 1):
-                                        for pad in paddings:
-            
-                                            # Copy sequence file
-                                            if (re.search(pad, fileNodePath.split("/")[-1])):
-                                                originalSeq = fileNodePath.replace(pad, str(pad % frameFirst))
-                                                frameSeq = fileNodePath.split("/")[-1].replace(pad, str(pad % frameFirst))
-                                                fileNames.append (frameSeq)
-                                                newSeq = newFilenamePath + frameSeq
-                                                frameFirst += 1
-                                                task.setMessage("Collecting file:   " + frameSeq)
-        
-                                                if (os.path.exists(newSeq)):
-                                                    print((newSeq + '     DUPLICATED'))
-                                                else:
-                                                    if (os.path.exists(originalSeq)):
-                                                        link_file(originalSeq, newSeq)
-                                                        print((newSeq + '     COPIED'))                      
-                                                    else:
-                                                        print((newSeq + '     MISSING'))
-
-                                    print ('\n')
-                            
-                        # Copy single file
-                        else:
-                            newFilenamePath = footagePath + fileNodePath.split("/")[-1]
-                            if (os.path.exists(newFilenamePath)):
-                                print((newFilenamePath + '     DUPLICATED'))
-                            else:
-                                if (os.path.exists(fileNodePath)):
-                                    link_file(fileNodePath, newFilenamePath)
-                                    print((newFilenamePath + '     COPIED'))
-                                else:
-                                    print((newFilenamePath + '     MISSING'))
-
-            else:
-                pass
-
-        
-        if (cancelCollect == 0):
-            # Save script to archive path
-            newScriptPath = targetPath + scriptName
-            nuke.scriptSaveAs(newScriptPath)
-    
-            #link files to new path
             for fileNode in nuke.allNodes():
+                if task.isCancelled():
+                    cancelCollect = 1
+                    break
+                count += 1
+                task.setMessage("Collecting file:   " + str(fileNode))
+                task.setProgress(int(count*100/len(nuke.allNodes())))
+
+
                 if checkForKnob(fileNode, 'file'):
                     if not checkForKnob(fileNode, 'Render'):
                         fileNodePath = fileNode['file'].value()
                         if (fileNodePath == ''):
                             continue
                         else:
+                            readFilename = fileNodePath.split("/")[-1]
                             
-                            if checkForKnob(fileNode, 'first'):                            
+                            if checkForKnob(fileNode, 'first'):
+
                                 if (fileNodePath.endswith(tuple(videoExtension))):
-                                    fileNodePath = fileNode['file'].value()
-                                    readFilename = fileNodePath.split("/")[-1]
-                                    reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
-                                    fileNode['file'].setValue(reloadPath)
+                                    newFilenamePath = footagePath + fileNodePath.split("/")[-1]
+                                    if (os.path.exists(newFilenamePath)):
+                                        print((newFilenamePath + '     DUPLICATED'))
+                                    else:
+                                        if (os.path.exists(fileNodePath)):
+                                            link_file(fileNodePath, newFilenamePath)
+                                            print((newFilenamePath + '     COPIED'))                                       
+                                        else:
+                                            print((newFilenamePath + '     MISSING'))        
+
                                 else:
                                     # frame range
-                                    frameFirst = fileNode['first'].value()
-                                    frameLast = fileNode['last'].value()
-        
+                                    frameFirst = int(fileNode['first'].value())
+                                    frameLast = int(fileNode['last'].value())
+                                    framesDur = frameLast - frameFirst
+                                    
                                     if (frameFirst == frameLast):
+                                        newFilenamePath = footagePath + readFilename
+                                        if (os.path.exists(newFilenamePath)):
+                                            print((newFilenamePath + '     DUPLICATED'))
+                                        else:
+                                            if (os.path.exists(fileNodePath)):
+                                                link_file(fileNodePath, newFilenamePath)
+                                                print((newFilenamePath + '     COPIED'))                             
+                                            else:
+                                                print((newFilenamePath + '     MISSING'))
+
+                                    else:
+                                        dirSeq = fileNodePath.split("/")[-2] + '/'
+                                        newFilenamePath = footagePath + dirSeq
+                                        if (os.path.exists(newFilenamePath)):
+                                            print((newFilenamePath + '     DUPLICATED'))
+                                        else:
+                                            os.mkdir(newFilenamePath)
+    
+                                        # rename sequence
+                                        for frame in range(framesDur + 1):
+                                            for pad in paddings:
+            
+                                                # Copy sequence file
+                                                if (re.search(pad, fileNodePath.split("/")[-1])):
+                                                    originalSeq = fileNodePath.replace(pad, str(pad % frameFirst))
+                                                    frameSeq = fileNodePath.split("/")[-1].replace(pad, str(pad % frameFirst))
+                                                    fileNames.append (frameSeq)
+                                                    newSeq = newFilenamePath + frameSeq
+                                                    frameFirst += 1
+                                                    task.setMessage("Collecting file:   " + frameSeq)
+        
+                                                    if (os.path.exists(newSeq)):
+                                                        print((newSeq + '     DUPLICATED'))
+                                                    else:
+                                                        if (os.path.exists(originalSeq)):
+                                                            link_file(originalSeq, newSeq)
+                                                            print((newSeq + '     COPIED'))                      
+                                                        else:
+                                                            print((newSeq + '     MISSING'))
+
+                                        print ('\n')
+                            
+                            # Copy single file
+                            else:
+                                newFilenamePath = footagePath + fileNodePath.split("/")[-1]
+                                if (os.path.exists(newFilenamePath)):
+                                    print((newFilenamePath + '     DUPLICATED'))
+                                else:
+                                    if (os.path.exists(fileNodePath)):
+                                        link_file(fileNodePath, newFilenamePath)
+                                        print((newFilenamePath + '     COPIED'))
+                                    else:
+                                        print((newFilenamePath + '     MISSING'))
+
+                else:
+                    pass
+
+            
+            if (cancelCollect == 0):
+                # Save script to archive path
+                newScriptPath = targetPath + scriptName
+                nuke.scriptSaveAs(newScriptPath)
+    
+                #link files to new path
+                for fileNode in nuke.allNodes():
+                    if checkForKnob(fileNode, 'file'):
+                        if not checkForKnob(fileNode, 'Render'):
+                            fileNodePath = fileNode['file'].value()
+                            if (fileNodePath == ''):
+                                continue
+                            else:
+                                
+                                if checkForKnob(fileNode, 'first'):                            
+                                    if (fileNodePath.endswith(tuple(videoExtension))):
                                         fileNodePath = fileNode['file'].value()
                                         readFilename = fileNodePath.split("/")[-1]
                                         reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
                                         fileNode['file'].setValue(reloadPath)
                                     else:
-                                        fileNodePath = fileNode['file'].value()
-                                        dirSeq = fileNodePath.split("/")[-2] + '/'
-                                        readFilename = fileNodePath.split("/")[-1]
-                                        reloadPath = '[file dirname [value root.name]]/footage/' + dirSeq + readFilename
-                                        fileNode['file'].setValue(reloadPath)
-                            
-                            else:
-                                fileNodePath = fileNode['file'].value()
-                                readFilename = fileNodePath.split("/")[-1]
-                                reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
-                                fileNode['file'].setValue(reloadPath)
+                                        # frame range
+                                        frameFirst = int(fileNode['first'].value())
+                                        frameLast = int(fileNode['last'].value())
+        
+                                        if (frameFirst == frameLast):
+                                            fileNodePath = fileNode['file'].value()
+                                            readFilename = fileNodePath.split("/")[-1]
+                                            reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
+                                            fileNode['file'].setValue(reloadPath)
+                                        else:
+                                            fileNodePath = fileNode['file'].value()
+                                            dirSeq = fileNodePath.split("/")[-2] + '/'
+                                            readFilename = fileNodePath.split("/")[-1]
+                                            reloadPath = '[file dirname [value root.name]]/footage/' + dirSeq + readFilename
+                                            fileNode['file'].setValue(reloadPath)
+                                
+                                else:
+                                    fileNodePath = fileNode['file'].value()
+                                    readFilename = fileNodePath.split("/")[-1]
+                                    reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
+                                    fileNode['file'].setValue(reloadPath)
+                        else:
+                            pass
                     else:
                         pass
-                else:
-                    pass
     
-            nuke.scriptSave()
-            del task        
-            print ('COLLECT DONE!!')
-            nuke.message('COLLECT DONE!!')
+                nuke.scriptSave()
+                print ('COLLECT DONE!!')
+                nuke.message('COLLECT DONE!!')
 
-        else:
+            else:
+                print ('COLLECT CANCELLED - Toma Rojo Puto')
+                nuke.message('COLLECT CANCELLED')
+        finally:
+            task.setProgress(100)
             del task
-            print ('COLLECT CANCELLED - Toma Rojo Puto')
-            nuke.message('COLLECT CANCELLED')
 
     # If they just hit OK on the default ellipsis...
     elif panelResult[0] == 1 and panelResult[1] == '':
@@ -317,4 +319,3 @@ def collectFiles():
     # hit CANCEL
     else:
         print ('COLLECT CANCELLED')
-
