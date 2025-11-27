@@ -69,8 +69,9 @@ nuke.menu('Nuke').findItem('Edit').findItem('Node').addCommand("Swap A - B",
 nuke.menu('Nuke').findItem('Edit').findItem('Node').addCommand( "Toggle Disable", 
     "import toggle_disable_sd; toggle_disable_sd.toggleDisable(nuke.selectedNodes())", "Alt+Shift+d", shortcutContext= dagContext) 
 
-#color backdrops automatically based on first line of text
+#color backdrops automatically based on first line of text. Keep this line:
 import backdrop_sd
+# But comment this out if you don't want to color backdrops automatically based on first line of text
 nuke.addKnobChanged(backdrop_sd.autocolor_bd, nodeClass= "BackdropNode")
 
 #autosaves
