@@ -1,0 +1,59 @@
+name: Deploy Nuke Tools on Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to deploy (e.g., 1.0.6)'
+        required: true
+        default: '1.0.6'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: eu-west-1
+      SSM_PARAMETER_NAME: /workstations/2025.0.0
+      SSM_PARAMETER_ARN: arn:aws:ssm:eu-west-1:597088022503:parameter/workstations/2025.0.0
+      SSM_PARAMETER_KEY: NUKE_TOOLS
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            ref: ${{ env.RELEASE_TAG }}
+
+        - name: Setup OIDC
+          shell: bash
+          run: |
+            echo "OIDC_ROLE=$(make -s -f $GITHUB_WORKSPACE/Makefile get-oidc-role PROJECT_ENV=prod-shared-services)" >> $GITHUB_ENV
+            echo "OIDC_SESSION=$(make -s -f $GITHUB_WORKSPACE/Makefile get-oidc-session PROJECT_ENV=prod-shared-services)" >> $GITHUB_ENV
+
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v2
+          with:
+            aws-region: ${{ env.AWS_REGION }}
+            role-to-assume: ${{ env.OIDC_ROLE }}
+            role-session-name: ${{ env.OIDC_SESSION }}
+
+        - name: Update NUKE_TOOLS version in SSM Parameter Store
+          run: |
+            .github/scripts/update-ssm-parameter.sh \
+              "${SSM_PARAMETER_NAME}" \
+              "${SSM_PARAMETER_KEY}" \
+              "${RELEASE_TAG}" \
+              "${AWS_REGION}"
+
+        - name: Copy files to S3 with release version
+          run: |
+            aws s3 sync . s3://flwls-shared-services-prod-eu-west-1-workstation-deployments/nuke_tools/${RELEASE_TAG}/ \
+              --exclude ".git/*" \
+              --exclude ".github/*" \
+              --region "${{ env.AWS_REGION }}"
