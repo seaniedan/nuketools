@@ -60,7 +60,8 @@ def _find_sequence_path(filepath):
     if extension in MOVIE_EXTENSIONS:
         return filepath
 
-    dir_contents = nuke.getFileNameList(dirpath, splitSequences=False)
+    # Args: dir, splitSequences, extraInformation, returnDirs, returnHidden
+    dir_contents = nuke.getFileNameList(dirpath, False, False, False, False)
     
     # Build regex pattern: strip trailing numbers, escape dots, match extension
     match_pattern, had_numbers = re.subn(r'\d+$', '', base)
@@ -120,9 +121,21 @@ def updateRead(node):
     filepath = nuke.filename(node, nuke.REPLACE)
     extension = os.path.splitext(filepath)[1].lower()
     
-    # Movies: just reload (fromUserText would reset frame range to 1)
-    # Sequences: re-detect the frame range from disk
-    if extension not in MOVIE_EXTENSIONS:
+    if extension in MOVIE_EXTENSIONS:
+        # Movies: fromUserText doesn't re-detect duration on existing nodes.
+        # Create a temp Read to get the correct frame count, then copy it.
+        original_path = node['file'].value()
+        temp_read = nuke.nodes.Read()
+        temp_read['file'].fromUserText(original_path)
+        
+        node['first'].setValue(temp_read['first'].value())
+        node['last'].setValue(temp_read['last'].value())
+        node['origfirst'].setValue(temp_read['origfirst'].value())
+        node['origlast'].setValue(temp_read['origlast'].value())
+        
+        nuke.delete(temp_read)
+    else:
+        # Sequences: re-detect the frame range from disk
         try:
             resolved_filepath = _find_sequence_path(filepath)
             node['file'].fromUserText(resolved_filepath)
