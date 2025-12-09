@@ -1,229 +1,162 @@
+"""
+Read from Write - Create Read nodes from Write nodes and similar conversions.
+
+Supported conversions:
+    Write/WriteTank -> Read
+    Read -> Read (reload with updated frame range)
+    GenerateLUT -> OCIOFileTransform
+    WriteGeo -> ReadGeo
+    SmartVector -> SmartVector
+
+Sean Danischevsky 2016
+"""
+
+import os
+import re
 import nuke
-#For Nuke Write nodes, returns a Read node.
-#if it's a read already/RELOAD the read. And check for expanded frame range.
-#GenerateLUT -> Vectorfield
-#WriteGeo -> ReadGeo
-#Sean Danischevsky 2016 etc.
+
+MOVIE_EXTENSIONS = [
+    '.qt', '.mov', '.mxf', '.mp4', '.avi', '.m4v',
+    '.mkv', '.webm', '.r3d', '.braw', '.ari'
+]
+
+# Mapping of node classes to their reader node types
+NODE_READER_MAP = {
+    'GenerateLUT': 'OCIOFileTransform',
+    'SmartVector': 'SmartVector',
+    'WriteGeo': 'ReadGeo',
+}
 
 
-def VectorfieldFromNode(node):
-    #node= nuke.nodes.Vectorfield()  #switched to ocio file transform
-    #node['vfield_file'].setValue(filepath)  
+def _create_reader_node(node, reader_class):
+    """Create a reader node from a source node's file path."""
     try:
-        filepath= node['file'].value()
-        v= nuke.nodes.OCIOFileTransform()
-        v['file'].setValue(filepath)
-        v.setXYpos(node.xpos(), node.ypos()+ node.screenHeight())
-        return v
+        filepath = node['file'].value()
+        reader = getattr(nuke.nodes, reader_class)()
+        reader['file'].setValue(filepath)
+        reader.setXYpos(node.xpos(), node.ypos() + node.screenHeight())
+        return reader
     except Exception as e:
         return e
 
 
-def SmartVectorFromNode(node):
-    try:
-        filepath= node['file'].value()
-        sv= nuke.nodes.SmartVector()
-        sv['file'].setValue(filepath)
-        sv.setXYpos(node.xpos(), node.ypos()+ node.screenHeight())    
-        return sv
-    except Exception as e:
-        return e
-
-
-def ReadGeoFromNode(node):
-    try:
-        filepath= node['file'].value()    
-        rg= nuke.nodes.ReadGeo()
-        rg['file'].setValue(filepath)
-        rg.setXYpos(node.xpos(), node.ypos()+ node.screenHeight())    
-        return rg
-    except Exception as e:
-        return e
-
-
-def readFromFile(filepath):
-    #should really use nuke.getFileNameList(os.path.dirname(os.path.abspath(filepath)))
-    #but hey, this works:
+def _find_sequence_path(filepath):
+    """
+    Find a matching file sequence in the directory for a given filepath.
     
-    import os 
-    import re
+    For movie files, returns the filepath unchanged.
+    For image sequences, finds the matching sequence pattern in the directory.
+    
+    Returns the path with frame range notation (e.g. 'file.%04d.exr 1-100').
+    Raises FileNotFoundError if no matching files found.
+    """
+    dirpath, basepath = os.path.split(os.path.abspath(filepath))
+    base, extension = os.path.splitext(basepath)
+    
+    # Clean extension (handles 'None - None' problem from ShotGrid/Nuke)
+    extension = re.sub(r' .+', '', extension)
 
-    movie_extensions= ['.qt', '.mov', '.mxf']
-    dirpath, basepath= os.path.split(os.path.abspath(filepath)) 
-
-    dirContents= nuke.getFileNameList(dirpath, False, False, False, False) #getFileNameList(dir, splitSequences= False, extraInformation= False, returnDirs=True, returnHidden=False)
-    #print basepath
-    #print dirContents
-    base, extension= os.path.splitext(basepath)
-    #remove spaces from extension - for 'None - None' problem in Shotgun/Nuke
-    extension= re.sub(r' .+', '', extension)
-
-    #print base, extension
-
-    if extension in movie_extensions:
+    # Movie files don't need sequence detection
+    if extension in MOVIE_EXTENSIONS:
         return filepath
 
-    matchstring, subs= re.subn(r'\d+$', '', base) #remove numbers from end, if any
+    dir_contents = nuke.getFileNameList(dirpath, splitSequences=False)
+    
+    # Build regex pattern: strip trailing numbers, escape dots, match extension
+    match_pattern, had_numbers = re.subn(r'\d+$', '', base)
+    match_pattern = re.sub(r'\.', r'\.', match_pattern)
+    
+    if had_numbers:
+        match_pattern += ".+"  # Match frame numbers
+    
+    match_pattern += extension + ".*"  # Match extension and optional frame range
+    
+    matches = [f for f in dir_contents if re.match(match_pattern, f)]
+    
+    if not matches:
+        raise FileNotFoundError(f"No matching files found for: {filepath}")
 
-    #replace . with \. to match literal . in filenames
-    matchstring= re.sub(r'\.', '\.',matchstring)
+    return os.path.join(dirpath, matches[0])
 
-    if subs:
-        #there was a number at end
-        #matchstring+= "\d" #add wildcard for numbers
-        matchstring+= ".+" #add wildcard for numbers
-    #add extension and xxx-yyy - maybe I could improve on '*'
-    matchstring+= extension+ ".*"
-    print(("matchstring: "+ matchstring))
-    matches= [string for string in dirContents if re.match(matchstring, string)]
-    print(("matches: ", matches))
 
-    firstone= os.path.join(dirpath, matches[0])
-    #node= nuke.createNode('Read')
-    #node= nuke.nodes.Read()#faster
-    #node['file'].fromUserText('%s' % (firstone))  #safest/easiest to do this way and not too slow.
-    #node.setSelected(True) #I'll do this for all later
-    #return r
-    #r['reload'].execute()
-    return firstone
-
-    #except Exception as e:
-    #    return e
-
+def _copy_colorspace(source_node, target_node):
+    """Copy colorspace from source to target, handling 'default (...)' format."""
+    colorspace = source_node['colorspace'].value()
+    
+    if colorspace == "default" or target_node['colorspace'].value() == colorspace:
+        return
+    
+    # Extract colorspace from "default (colorspace)" format
+    match = re.match(r"default \((.+)\)", colorspace)
+    if match:
+        colorspace = match.group(1)
+    
+    target_node['colorspace'].setValue(colorspace)
 
 
 def readFromWrite(node):
-    #Creates a Read node for the selected Write node
-    #Modifed by Sean Danischevsky 2017
-
-    import re
+    """Create a Read node from a Write node, matching the rendered file sequence."""
     try:
-        #filepath= node.knob('file').getValue()
-        #this gets the evaluated value
-        #i.e. returns a file with frame number like 
-        # /mnt/..../file.1001.dpx
-        filepath= nuke.filename(node, nuke.REPLACE)
-        #check if nuke.REPLACE did anything? if not, just use filepath?
-        #print 'filePath is: '+filePath
-        r= nuke.nodes.Read() #faster
-        r['file'].fromUserText('%s'% (readFromFile(filepath)))  #safest/easiest to do this way and not too slow.
-
-        r.setXYpos(node.xpos(), node.ypos()+ r.screenHeight())
-        #nuke.autoplaceSnap(r)
-
-
-
-
-        #to do: check if this is default, and if so, do nothing
-        #hacky way to set 'default linear'
-        ###########read['colorspace'].setValue(nuke.getColorspaceList(read['colorspace'])[0])#######
-        #used to set it as 'default' which stopped working, then
-        #read['colorspace'].setValue(nuke.defaultColorspaceMapper('linear', nuke.FLOAT))
-
-        colorspace= node['colorspace'].value()
-        #print 'colorspace is: '+ str(colorspace)
-        if r['colorspace'].value() != colorspace and colorspace != "default":
-            #print r['colorspace'].value()        
-            #r.knob('colorspace').setValue(colorspace.replace("default (", "").replace(")", ""))
-            #should use lstrip, and rstrip only if lstrip was used.
-            colorspace_matchstring= r"default \((.+)\)"
-            m= re.match(colorspace_matchstring, colorspace)
-            if m:
-                colorspace= m.group(1) 
-            #colorspace= colorspace.lstrip("default (".rstrip(")"))
+        # Get evaluated filepath (with frame number substituted)
+        filepath = nuke.filename(node, nuke.REPLACE)
         
-            r['colorspace'].setValue(colorspace)
-        return r #nuke node
+        # Resolve to sequence path BEFORE creating Read (avoids blank nodes on failure)
+        resolved_filepath = _find_sequence_path(filepath)
+        
+        read = nuke.nodes.Read()
+        read['file'].fromUserText(resolved_filepath)
+        read.setXYpos(node.xpos(), node.ypos() + read.screenHeight())
+        
+        _copy_colorspace(node, read)
+        
+        return read
 
     except Exception as e:
-        return e #exception
-
+        return e
 
 
 def updateRead(node):
-    #aka readfromreads
-    import re
-    import os 
-    #print 'UPDATE READ'
-    filepath= nuke.filename(node, nuke.REPLACE)
-
-    movie_extensions= ['.qt', '.mov', '.mxf']
+    """Refresh an existing Read node to detect updated frame ranges."""
+    filepath = nuke.filename(node, nuke.REPLACE)
+    extension = os.path.splitext(filepath)[1].lower()
     
-    dirpath, basepath= os.path.split(os.path.abspath(filepath)) 
-    dirContents= nuke.getFileNameList(dirpath, False, False, False, False) #getFileNameList(dir, splitSequences= False, extraInformation= False, returnDirs=True, returnHidden=False)
-
-    base, extension= os.path.splitext(basepath)
-    #print base, extension
-    #remove spaces from extension - for 'None - None' problem in Shotgun/Nuke
-    extension= re.sub(r' .+', '', extension)
-
-    if extension in movie_extensions:
-        node['file'].fromUserText('%s'% (filepath))  #safest/easiest to do this way and not too slow.
-        #print "video"
-        return node
-
-    matchstring, subs= re.subn(r'\d+$', '', base) #remove numbers from end, if any
-
-    #replace . with \. to match literal . in filenames
-    matchstring= re.sub(r'\.', '\.',matchstring)
-
-    if subs:
-        #there was a number at end
-        #matchstring+= "\d" #add wildcard for numbers
-        matchstring+= ".+" #add wildcard for numbers
-    #add extension and xxx-yyy - maybe I could improve on '*'
-    matchstring+= extension+ ".*"
-    matches= [string for string in dirContents if re.match(matchstring, string)]
-    if matches:
-        firstone= os.path.join(dirpath, matches[0])
-        #print "first one"
-        node['file'].fromUserText('%s' % (firstone))  #safest/easiest to do this way and not too slow.
-
+    # Movies: just reload (fromUserText would reset frame range to 1)
+    # Sequences: re-detect the frame range from disk
+    if extension not in MOVIE_EXTENSIONS:
+        try:
+            resolved_filepath = _find_sequence_path(filepath)
+            node['file'].fromUserText(resolved_filepath)
+        except FileNotFoundError:
+            pass  # Keep existing file path if no matches found
+    
     node['reload'].execute()
-
     return node
 
 
-
 def readFromWrites(nodes):
-    #import time
-    #t0 = time.time()
-    #timed code block:
-    unsucessful= []
-    return_nodes= []
+    """
+    Process multiple nodes, creating appropriate reader nodes for each.
+    
+    Returns a list of successfully created nodes.
+    """
+    successful = []
+    
     for node in nodes:
-        if node.Class() in ['Write', 'WriteTank']:# need my recursive read dictionary here
-            return_result= readFromWrite(node) 
-        elif node.Class() in ['GenerateLUT']:
-            return_result= VectorfieldFromNode(node)
-        elif node.Class() in ['SmartVector']:
-            return_result= SmartVectorFromNode(node) 
-        elif node.Class() in ['WriteGeo']:
-            return_result= ReadGeoFromNode(node)              
-        elif node.Class() in ['Read']: 
-            return_result = updateRead(node) 
-
+        node_class = node.Class()
+        
+        if node_class in ['Write', 'WriteTank']:
+            result = readFromWrite(node)
+        elif node_class in NODE_READER_MAP:
+            result = _create_reader_node(node, NODE_READER_MAP[node_class])
+        elif node_class == 'Read':
+            result = updateRead(node)
+        elif 'file' in node.knobs():
+            # Only try unknown nodes if they have a file knob
+            result = readFromWrite(node)
         else:
-            #try it anyway 
-            #would be nice to return the right reader for each file type, like in recursive read.
-            return_result= readFromWrite(node)
+            continue  # Skip nodes without file knobs
 
-        if not isinstance(return_result, nuke.Node):
-            #it didn't work
-            unsucessful.append(return_result)
-        else:
-            return_nodes.append(return_result)
-    #really want to check for missing frames here and report            
-    if unsucessful:
-        #no_frames_msg= "Couldn't find any rendered frames in\n%s"% ("\n".join(dirpath for dirpath in unsucessful if dirpath is string))
-        #no_dirs_msg= "Couldn't find any rendered frames in\n%s"% ("\n".join(dirpath for dirpath in unsucessful if dirpath is string))
-        #msg="\n".join(dirpath for dirpath in unsucessful)
-        #msg="\n".join('%s'%dirpath for dirpath in unsucessful)
-        pass
-        #return# nuke.message(msg)
-    #end timed code block
-    #t1= time.time()
-    #total= t1-t0
-    #print nuke.selectedNode().name()+": "+ str(total)+' seconds.'
-    #.7 or .8 secs first time then .07
-    return return_nodes
+        if isinstance(result, nuke.Node):
+            successful.append(result)
+    
+    return successful
