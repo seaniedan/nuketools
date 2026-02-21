@@ -14,8 +14,8 @@
 # www.marianoantico.blogspot.com
 # www.vimeo.com/29200474
 #
-# Supported Video Files:
-# 'mov', 'avi', 'mpeg', 'mp4', 'R3D'
+# Supported Video Files (single-file; not treated as image sequences):
+# mov, avi, mpeg, mpg, mp4, mxf, m4v, mkv, webm, R3D, r3d, braw, ari, qt
 #
 # Installation Notes:
 # 
@@ -118,7 +118,19 @@ def collectFiles():
 
     fileNames = []
     paddings = ['%01d', '%02d', '%03d', '%04d', '%05d', '%06d', '%07d', '%08d', '%d', '%1d']
-    videoExtension = ['mov', 'avi', 'mpeg', 'mpg', 'mp4', 'R3D']
+    # Single-file video extensions (copy one file; do not treat as image sequence)
+    videoExtension = [
+        'mov', 'avi', 'mpeg', 'mpg', 'mp4', 'mxf', 'm4v', 'mkv', 'webm',
+        'R3D', 'r3d', 'braw', 'ari', 'qt'
+    ]
+    # Path has a sequence placeholder (e.g. %04d or ####) -> copy full sequence
+    def path_is_sequence(p):
+        if not p:
+            return False
+        base = os.path.basename(p)
+        if re.search(r'%\d*d', base) or '#' in base:
+            return True
+        return False
     cancelCollect = 0
 
     # hit OK
@@ -176,8 +188,9 @@ def collectFiles():
                             readFilename = fileNodePath.split("/")[-1]
                             
                             if checkForKnob(fileNode, 'first'):
-
-                                if (fileNodePath.endswith(tuple(videoExtension))):
+                                pathLower = fileNodePath.lower()
+                                isVideoFile = any(pathLower.endswith('.' + ext.lower()) for ext in videoExtension)
+                                if isVideoFile and not path_is_sequence(fileNodePath):
                                     newFilenamePath = footagePath + fileNodePath.split("/")[-1]
                                     if (os.path.exists(newFilenamePath)):
                                         print((newFilenamePath + '     DUPLICATED'))
@@ -189,7 +202,7 @@ def collectFiles():
                                             print((newFilenamePath + '     MISSING'))        
 
                                 else:
-                                    # frame range
+                                    # frame range: single frame or image sequence
                                     frameFirst = int(fileNode['first'].value())
                                     frameLast = int(fileNode['last'].value())
                                     framesDur = frameLast - frameFirst
@@ -205,37 +218,48 @@ def collectFiles():
                                             else:
                                                 print((newFilenamePath + '     MISSING'))
 
-                                    else:
+                                    elif path_is_sequence(fileNodePath):
+                                        # Copy whole image sequence (path has %0xd or #)
                                         dirSeq = fileNodePath.split("/")[-2] + '/'
                                         newFilenamePath = footagePath + dirSeq
                                         if (os.path.exists(newFilenamePath)):
                                             print((newFilenamePath + '     DUPLICATED'))
                                         else:
                                             os.mkdir(newFilenamePath)
-    
-                                        # rename sequence
                                         for frame in range(framesDur + 1):
+                                            copied_this_frame = False
                                             for pad in paddings:
-            
-                                                # Copy sequence file
-                                                if (re.search(pad, fileNodePath.split("/")[-1])):
+                                                if (re.search(re.escape(pad), fileNodePath.split("/")[-1])):
                                                     originalSeq = fileNodePath.replace(pad, str(pad % frameFirst))
                                                     frameSeq = fileNodePath.split("/")[-1].replace(pad, str(pad % frameFirst))
-                                                    fileNames.append (frameSeq)
+                                                    fileNames.append(frameSeq)
                                                     newSeq = newFilenamePath + frameSeq
                                                     frameFirst += 1
                                                     task.setMessage("Collecting file:   " + frameSeq)
-        
                                                     if (os.path.exists(newSeq)):
                                                         print((newSeq + '     DUPLICATED'))
                                                     else:
                                                         if (os.path.exists(originalSeq)):
                                                             link_file(originalSeq, newSeq)
-                                                            print((newSeq + '     COPIED'))                      
+                                                            print((newSeq + '     COPIED'))
                                                         else:
                                                             print((newSeq + '     MISSING'))
-
-                                        print ('\n')
+                                                    copied_this_frame = True
+                                                    break
+                                            if not copied_this_frame:
+                                                break
+                                        print('\n')
+                                    else:
+                                        # first != last but path has no sequence placeholder: treat as single file (e.g. video)
+                                        newFilenamePath = footagePath + readFilename
+                                        if (os.path.exists(newFilenamePath)):
+                                            print((newFilenamePath + '     DUPLICATED'))
+                                        else:
+                                            if (os.path.exists(fileNodePath)):
+                                                link_file(fileNodePath, newFilenamePath)
+                                                print((newFilenamePath + '     COPIED'))
+                                            else:
+                                                print((newFilenamePath + '     MISSING'))
                             
                             # Copy single file
                             else:
@@ -267,27 +291,33 @@ def collectFiles():
                                 continue
                             else:
                                 
-                                if checkForKnob(fileNode, 'first'):                            
-                                    if (fileNodePath.endswith(tuple(videoExtension))):
+                                if checkForKnob(fileNode, 'first'):
+                                    pathLower = fileNodePath.lower()
+                                    isVideoFile = any(pathLower.endswith('.' + ext.lower()) for ext in videoExtension)
+                                    if isVideoFile and not path_is_sequence(fileNodePath):
                                         fileNodePath = fileNode['file'].value()
                                         readFilename = fileNodePath.split("/")[-1]
                                         reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
                                         fileNode['file'].setValue(reloadPath)
                                     else:
-                                        # frame range
+                                        # frame range: single frame or sequence
                                         frameFirst = int(fileNode['first'].value())
                                         frameLast = int(fileNode['last'].value())
-        
                                         if (frameFirst == frameLast):
                                             fileNodePath = fileNode['file'].value()
                                             readFilename = fileNodePath.split("/")[-1]
                                             reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
                                             fileNode['file'].setValue(reloadPath)
-                                        else:
+                                        elif path_is_sequence(fileNodePath):
                                             fileNodePath = fileNode['file'].value()
                                             dirSeq = fileNodePath.split("/")[-2] + '/'
                                             readFilename = fileNodePath.split("/")[-1]
                                             reloadPath = '[file dirname [value root.name]]/footage/' + dirSeq + readFilename
+                                            fileNode['file'].setValue(reloadPath)
+                                        else:
+                                            fileNodePath = fileNode['file'].value()
+                                            readFilename = fileNodePath.split("/")[-1]
+                                            reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
                                             fileNode['file'].setValue(reloadPath)
                                 
                                 else:
