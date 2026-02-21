@@ -110,7 +110,7 @@ def recursive_read(walkPaths= None, maxdepth= -1,
     extVectorfield= [],  # superseded by extOCIOFileTransform
     extOCIOCDLTransform= ['.cc','.ccc'],
     extIgnore= ['.autosave', '.dae', '.db', '.ma', '.mb', '.mel', '.meta', '.nk', '.nk~', '.nkple', '.gizmo', '.pkl', '.pickle', '.pfcp', '.pfmp', '.psb', '.rv', '.svn-base', '.svn/all-wcprops', '.svn/entries', '.swatches', '.tmp', '.tx', '.vars', '.xmp', '.zip'], 
-    includeString= None, excludeString= None, latest= False):
+    includeString= None, excludeString= None, latest= False, debug_path= None):
     # was     extVectorfield= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'], 
 
     #walkPaths= a directory or list of directories (e.g. '/a/dir/' or ['/path/to/dir','/other/path'])
@@ -134,6 +134,9 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         subdirs = []
         if files_in_cur:
             for name in files_in_cur:
+                # Only consider direct children: names with path separators belong in a subdir, not here
+                if '/' in name or os.path.sep in name:
+                    continue
                 cur = os.path.join(current_dir, name)
                 if os.path.isdir(cur) or os.path.islink(cur):
                     if depth < maxdepth or maxdepth == -1:
@@ -500,123 +503,120 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             task = nuke.ProgressTask('Building directory tree')
             task.setMessage('Scanning %s' % walkPath)
             tree = build_tree(walkPath, walkPath, 0)
-            # Breadth-first so root (files) first, then subdirs level by level
-            df = breadth_first_list(tree)
+            df = depth_first_list(tree)
             total_dirs = len(df)
             if total_dirs == 0:
                 continue
 
-            # Pass 1: create nodes and backdrops per directory (provisional vertical stack)
-            task.setMessage('Loading files (pass 1)')
+            side_pad = int(gw * 2)
             base_x = 0
-            current_y = root_index * (400 + bd_pad)  # offset per root
-            for idx, node in enumerate(df):
+            base_y = root_index * (400 + bd_pad)
+
+            def layout_recursive(node, start_x, start_y, dfs_index_ref):
+                """Place file nodes only: layout by extension, then recurse into subdirs (each below the previous). Returns end_y."""
+                rel = node.get('relative') or ''
                 if task.isCancelled():
-                    break
-                task.setMessage('Directory %s (%d/%d)' % (node['relative'] or '(root)', idx + 1, total_dirs))
+                    return start_y
+                idx = dfs_index_ref[0]
+                dfs_index_ref[0] += 1
+                task.setMessage('Layout %s (%d/%d)' % (rel or '(root)', idx + 1, total_dirs))
                 task.setProgress(int(100.0 * (idx + 1) / total_dirs))
-                rel = node['relative']
-                # Root directory: use absolute path; else use relative path (so one backdrop = full path when no files in parent dirs)
-                label = os.path.abspath(walkPath) if not rel else rel
-                files_here = node['files'][:]
+
+                files_here = (node.get('files') or [])[:]
                 files_here.sort(key=_alphabetical_sort_key)
                 returnNodes = []
                 for filepath in files_here:
                     returnNodes.append(nuke_loader(filepath))
                 nodes_here = [n for n in returnNodes if n is not None]
-                # Only create a backdrop when this directory has at least one file that produced a node
-                if not nodes_here:
-                    node['backdrop'] = None
-                    node['nodes'] = []
-                    continue
-                all_created_nodes.extend(nodes_here)
-                layout_nodes_by_extension(nodes_here, base_x, current_y)
-                bd = backdrop_sd.make_backdrop(nodes_here, label=label)
-                node['backdrop'] = bd
                 node['nodes'] = nodes_here
-                # Stack next directory below this backdrop
-                current_y += bd.screenHeight() + bd_pad
+                all_created_nodes.extend(nodes_here)
 
-            # Pass 2: nest child backdrops inside parent backdrops
-            task.setMessage('Nesting backdrops (pass 2)')
-            reverse_df = list(reversed(df))
-            for node in reverse_df:
-                if task.isCancelled():
-                    break
-                if not node.get('subdirs') or not node.get('backdrop'):
-                    continue
-                parent_bd = node['backdrop']
-                px, py = parent_bd.xpos(), parent_bd.ypos()
-                pw, ph = parent_bd.screenWidth(), parent_bd.screenHeight()
-                top_pad = int(gh * 4)
-                side_pad = int(gw * 2)
-                # Start children below the parent's own content (so they don't overlap parent's files)
-                parent_nodes = node.get('nodes') or []
-                if parent_nodes:
-                    parent_content_bottom = max(n.ypos() + n.screenHeight() for n in parent_nodes)
-                    child_y = int(parent_content_bottom + bd_pad)
-                else:
-                    child_y = py + top_pad
-                child_x = px + side_pad
-                max_child_right = child_x
-                max_child_bottom = child_y
-                for sub in node['subdirs']:
-                    child_bd = sub.get('backdrop')
-                    if not child_bd:
-                        continue
-                    old_x, old_y = child_bd.xpos(), child_bd.ypos()
-                    dx = child_x - old_x
-                    dy = child_y - old_y
-                    # Use stored nodes for this dir so we always move the right contents (avoids geometry glitches)
-                    contents = list(sub.get('nodes') or [])
-                    child_bd.setXYpos(int(child_x), int(child_y))
-                    for n in contents:
-                        if n and n.Class() != 'BackdropNode':
-                            n.setXYpos(int(n.xpos() + dx), int(n.ypos() + dy))
-                    max_child_right = max(max_child_right, child_x + child_bd.screenWidth())
-                    max_child_bottom = max(max_child_bottom, child_y + child_bd.screenHeight())
-                    child_y = max_child_bottom + bd_pad
-                new_w = max(pw, max_child_right - px + side_pad)
-                new_h = max(ph, max_child_bottom - py + top_pad)
-                parent_bd['bdwidth'].setValue(new_w)
-                parent_bd['bdheight'].setValue(new_h)
+                if nodes_here:
+                    layout_nodes_by_extension(nodes_here, start_x, start_y)
+                    block_bottom = max(n.ypos() + n.screenHeight() for n in nodes_here)
+                    start_y = block_bottom + bd_pad
 
-            # Pass 3: pack top-level backdrops to remove gaps, then root backdrop contains all
-            def all_backdrops_and_nodes_in_tree(t):
-                out = []
+                for sub in node.get('subdirs') or []:
+                    start_y = layout_recursive(sub, start_x + side_pad, start_y, dfs_index_ref) + bd_pad
+
+                return start_y
+
+            # 1) Layout: place all file nodes (no backdrops yet)
+            task.setMessage('Layout (files only)')
+            layout_recursive(tree, base_x, base_y, [0])
+
+            # Optional debug file (after layout, before backdrops)
+            if debug_path:
+                try:
+                    with open(debug_path, 'w') as f:
+                        f.write('recursive_read_sd debug (after layout, before backdrops)\n')
+                        f.write('walkPath: %s\n\n' % walkPath)
+                        f.write('Depth-first: each dir with its files\n')
+                        f.write('%s\n' % ('-' * 80))
+                        for idx, node in enumerate(df):
+                            rel = node['relative'] or '(root)'
+                            files_here = node.get('files') or []
+                            nodes_here = node.get('nodes') or []
+                            f.write('\n[%d] relative: %s  nodes: %d\n' % (idx, rel, len(nodes_here)))
+                            for fi, fp in enumerate(files_here[:50]):
+                                f.write('      [%d] %s\n' % (fi, os.path.relpath(fp, walkPath).replace('\\', '/')))
+                            if len(files_here) > 50:
+                                f.write('      ... and %d more\n' % (len(files_here) - 50))
+                        f.write('\n%s\n' % ('-' * 80))
+                except Exception as e:
+                    print('recursive_read_sd debug write failed: %s' % e)
+
+            # 2) Create all backdrops at the end (reverse depth-first: children first, then parent contains them)
+            node_to_dfs_idx = {id(n): i for i, n in enumerate(df)}
+
+            def create_backdrops_reverse_dfs(node):
+                for sub in node.get('subdirs') or []:
+                    create_backdrops_reverse_dfs(sub)
+                contents = list(node.get('nodes') or [])
+                for sub in node.get('subdirs') or []:
+                    if sub.get('backdrop'):
+                        contents.append(sub['backdrop'])
+                if not contents:
+                    node['backdrop'] = None
+                    return
+                rel = node.get('relative') or ''
+                label = os.path.abspath(walkPath) if rel == '' else rel
+                if debug_path:
+                    idx = node_to_dfs_idx.get(id(node), -1)
+                    label = '[%d] %s' % (idx, label)
+                bd = backdrop_sd.make_backdrop(contents, label=label, fix_depth=False, cover_backdrops=True)
+                node['backdrop'] = bd
+
+            task.setMessage('Creating backdrops')
+            create_backdrops_reverse_dfs(tree)
+
+            # 3) Z-order: assign in depth-first order so root=0 (back), deeper=higher z (on top).
+            # That way the larger parent backdrop is behind the smaller child backdrops it contains.
+            def assign_z_order(node, z_list):
+                if node.get('backdrop'):
+                    z_list.append(node['backdrop'])
+                for sub in node.get('subdirs') or []:
+                    assign_z_order(sub, z_list)
+
+            backdrops_dfs = []
+            assign_z_order(tree, backdrops_dfs)
+            for z, bd in enumerate(backdrops_dfs):
+                try:
+                    bd.knob('z_order').setValue(z)
+                except Exception:
+                    pass
+
+            # 4) Optional: resize root backdrop to contain full tree
+            def all_items_in_tree(t):
+                out = list(t.get('nodes') or [])
                 if t.get('backdrop'):
                     out.append(t['backdrop'])
-                out.extend(t.get('nodes') or [])
                 for sub in t.get('subdirs') or []:
-                    out.extend(all_backdrops_and_nodes_in_tree(sub))
+                    out.extend(all_items_in_tree(sub))
                 return out
 
-            all_backdrops_in_tree = [t['backdrop'] for t in df if t.get('backdrop')]
-            # Top-level = not inside any other backdrop in this tree
-            def is_inside_other(bd, exclude=()):
-                for other in all_backdrops_in_tree:
-                    if other is bd or other in exclude:
-                        continue
-                    if backdrop_sd.nodeIsInside(bd, other):
-                        return True
-                return False
-            top_level = [bd for bd in all_backdrops_in_tree if not is_inside_other(bd)]
-            top_level.sort(key=lambda b: (b.ypos(), b.xpos()))
-            # Pack vertically to remove gaps
-            if len(top_level) > 1:
-                pack_y = top_level[0].ypos()
-                for bd in top_level:
-                    dy = pack_y - bd.ypos()
-                    if dy != 0:
-                        bd.setXYpos(int(bd.xpos()), int(pack_y))
-                        for n in backdrop_sd.nodes_in_backdrop(bd):
-                            if n != bd:
-                                n.setXYpos(int(n.xpos()), int(n.ypos() + dy))
-                    pack_y += bd.screenHeight() + bd_pad
-
             root_node = df[0]
-            all_items = all_backdrops_and_nodes_in_tree(tree)
-            # Only create/enlarge root backdrop when root already has one (had files). No empty backdrops.
+            all_items = all_items_in_tree(tree)
             if all_items and root_node.get('backdrop'):
                 min_x = min(n.xpos() for n in all_items)
                 min_y = min(n.ypos() for n in all_items)
@@ -627,7 +627,6 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 root_bd.setXYpos(int(min_x - outer_pad), int(min_y - outer_pad))
                 root_bd['bdwidth'].setValue(int(max_x - min_x + 2 * outer_pad))
                 root_bd['bdheight'].setValue(int(max_y - min_y + 2 * outer_pad))
-                backdrop_sd.fix_backdrop_depth()
 
             del task
 
@@ -652,6 +651,9 @@ if __name__ == "__main__":
 #   import recursive_read_sd
 #   importlib.reload(recursive_read_sd)
 #   recursive_read_sd.recursive_read()
+#
+# Temporary debug file (see which dir each file is assigned to, after pass 1):
+#   recursive_read_sd.recursive_read(debug_path='/tmp/recursive_read_debug.txt')
 
 
 

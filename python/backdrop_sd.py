@@ -296,7 +296,13 @@ def fix_backdrop_depth():
     [i.setSelected(1) for i in original_selection]
 
 ####################
-def make_backdrop(selNodes, label= None):
+def make_backdrop(selNodes, label= None, fix_depth= True, cover_backdrops= False):
+    '''
+    Create or resize a backdrop. By default, if the selection includes exactly one
+    backdrop, that backdrop is resized to fit the other nodes (no new node).
+    Set cover_backdrops=True to always create a NEW backdrop that encompasses the
+    full selection (including any backdrops), so the new backdrop "covers" them.
+    '''
     #print selNodes
     gw= nuke.toNode("preferences")["GridWidth"].value()
     #print 'gw',gw
@@ -322,8 +328,8 @@ def make_backdrop(selNodes, label= None):
             resize_bd(bd)
         except:
             nuke.delete(bd)
-        #always fix the depth for all BD nodes
-        fix_backdrop_depth()
+        if fix_depth:
+            fix_backdrop_depth()
         return bd
 
 
@@ -331,27 +337,20 @@ def make_backdrop(selNodes, label= None):
     #bdNodes=nuke.selectedNodes("BackdropNode")
     bdNodes= [node for node in selNodes if node.Class() == "BackdropNode"]
 
-
-    #only nodes selected (no backdrop nodes) - create backdrop node around nodes
-    if not bdNodes:
-        #create the bd 
+    # Create a NEW backdrop that encompasses all selection (including any backdrops).
+    # Without this, selecting nodes + one backdrop would resize that backdrop instead.
+    if cover_backdrops or not bdNodes:
         bd = nuke.createNode("BackdropNode")
-
-        #resize the bd
         resize_bd(bd, selNodes)
-
-        #color the bd
         bd['tile_color'].setValue (random.choice(collection))
-
-        #label the bd
         try:
           rename_bd(bd, label)
           for node in selNodes:
               node['selected'].setValue(True)
         except:
           nuke.delete(bd)
-        #always fix the depth for all BD nodes
-        fix_backdrop_depth()
+        if fix_depth:
+            fix_backdrop_depth()
         return bd
 
 
@@ -371,8 +370,8 @@ def make_backdrop(selNodes, label= None):
         #try to resize to fit
         if resize_bd(bd, selNodes):
             #Node changed size, so break
-            #always fix the depth for all BD nodes
-            fix_backdrop_depth()
+            if fix_depth:
+                fix_backdrop_depth()
             return
         
         #if in collection, cycle color
@@ -385,19 +384,24 @@ def make_backdrop(selNodes, label= None):
             #pick nearest
             reformat_backdrops(bd, fix_size= False, fix_fonts= False, fix_color= 'nearest')
 
-        #always fix the depth for all BD nodes
-        fix_backdrop_depth()
+        if fix_depth:
+            fix_backdrop_depth()
         return
 
-    #what I'd like to do is:
-    #more than one BD selected, and all nodes on bacdrop: reformat all selected. If nothing to do, add big backdrop behind
-    #if there are nodes not on backdrop, put all backdrops on a big backdrop
-    #but for now....
-    elif len(bdNodes)> 1:
-        #reformatted= reformat_backdrops(bdNodes, fix_size= True, fix_fonts= False, fix_color= 'nearest')
-        #if not reformatted:
-        #    #there was no reformattiing to do, so make a big backdrop behind selected nodes and backdrops
-        return reformat_backdrops(bdNodes, fix_size= True, fix_fonts= False, fix_color= 'nearest')
+    # Multiple backdrops selected: create a NEW backdrop around all of them (and any other selected nodes)
+    elif len(bdNodes) > 1:
+        bd = nuke.createNode("BackdropNode")
+        resize_bd(bd, selNodes)
+        bd['tile_color'].setValue(random.choice(collection))
+        try:
+            rename_bd(bd, label)
+            for node in selNodes:
+                node['selected'].setValue(True)
+        except:
+            nuke.delete(bd)
+        if fix_depth:
+            fix_backdrop_depth()
+        return bd
 
 
 def show_collection_as_backdrops(collection= collection):
@@ -488,19 +492,15 @@ def reformat_backdrops(nodes, fix_size= None, fix_fonts= None, fix_color= None):
                     bd['tile_color'].setValue(random.choice(collection))
 
         elif fix_color == 'nearest':
-                if bd['tile_color'].value() not in collection:
-                    for bd in nodes:
-                        #convert collection to rgb and store distance
-                        #using weighting: rr*.3+gg*.59+bb*.11
+                for bd in nodes:
+                    if bd['tile_color'].value() not in collection:
                         tr, tg, tb= rgb_int_to_rgb(bd['tile_color'].value())
                         cube= {}
                         for i, col in enumerate(collection):
                             sr, sg, sb= rgb_int_to_rgb(col)
                             dist= pow((sr- tr), 2)* .3+ pow((sg- tg), 2)* .59+ pow((sb- tb), 2)* .11
                             cube[col]= dist
-                        #find nearest colour
                         mindist= min(cube, key= cube.get)
-                        #print mindist
                         bd['tile_color'].setValue(mindist)
         #always fix the depth, for all BD nodes
         fix_backdrop_depth()

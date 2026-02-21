@@ -35,6 +35,24 @@
 
 ## Part 2: Design (expected behaviour and plan)
 
+### Simple recursive plan (target)
+
+For each root folder, do the following **per directory** (then recurse):
+
+1. **Files**  
+   Create a node for each file (Read, StickyNote, etc. by extension). Arrange these nodes **by extension** (e.g. one row per extension, left-to-right).
+
+2. **Folders**  
+   List subfolders. For **each subfolder**, create **one child backdrop** placed **below** the current directory’s files.
+
+3. **Folder backdrop contents**  
+   Each folder’s backdrop **contains**:
+   - That folder’s **files** (as nodes, arranged by extension), and  
+   - That folder’s **subfolders** (each as a child backdrop, below those files).  
+   Recurse: same rules inside each folder.
+
+So at every level the layout is: **[files block]** then **[folder1 backdrop]** **[folder2 backdrop]** … with each folder backdrop containing (files + subfolders) in the same way. No flat list, no “nest orphan into nearest ancestor” — the recursion and parent/child relationship are explicit. Optionally: create a folder backdrop only when that folder has at least one file or has subfolders that do (skip empty backdrops).
+
 ### Expected behaviour
 
 1. **Respect directory structure**: Treat the tree of directories as the main organising principle. Each directory (or each “folder” level we care about) should map to a clear unit in the script (e.g. one backdrop per directory, or nested backdrops for nested folders).
@@ -68,3 +86,34 @@
   - Fix progress reporting to use number of walk roots or number of files/dirs processed, not `len(walkPath)`.
 
 Implementing steps 1–6 gives: nested folders as nested backdrops, nodes laid out by type (rows) within each backdrop, and directory order (top-to-bottom by path) between backdrops.
+
+---
+
+## Part 3: Current implementation (summary)
+
+The code currently uses a **multi-pass** approach (build full tree → depth-first pass 1 → reverse pass 2 → pass 2b “orphans” → pass 3 pack/root/z-order), which leads to edge cases (e.g. directories with no files get no backdrop, so their children become “orphans”). The **target** is the simple recursive plan above: one recursive function that, per directory, lays out files by extension, then creates one child backdrop per subfolder (each containing the result of recursing into that folder), so nesting is direct and no orphan logic is needed.
+
+### Sorting
+
+- **Paths and directories**: **Alphabetical** (case-insensitive) via `_alphabetical_sort_key(s)` everywhere: walk roots, sibling subdirs in the tree, and file lists per directory. Natural sort (`_natural_sort_key`) exists but is not used in the main flow.
+- **Tree build**: `build_tree()` returns a tree with `path`, `relative`, `files`, `subdirs`. Files in each dir and sibling subdirs are sorted alphabetically before returning.
+- **Directory order for placement**: **Depth-first** (`depth_first_list(tree)`). So root is first, then the first branch in full (e.g. `PW_0150` → `out` → `regrainedUHD_composited`), then the next branch (e.g. `ffx_debug` → …), avoiding interleaving by level. A **parent map** (`parent_map(tree)`) and **placement_y_end** ensure each directory’s row is placed at least below its parent’s row (child never above parent in y).
+
+### Layout of files (within each directory)
+
+- **One backdrop per directory** that has at least one file that produces a node. Directories with no such files get no backdrop (no empty backdrops).
+- **Within a backdrop**, nodes are laid out by **file extension** (`layout_nodes_by_extension`): one **row per extension** (e.g. `.exr`, `.jpg`, `.txt`), left-to-right within each row. Extensions and nodes within each row are ordered alphabetically. StickyNotes get their extension from the label’s first line (path) when they have no `file` knob. Positions are **snapped to the Nuke grid** (`_snap_to_grid`). BackdropNodes are skipped for layout.
+- **Root directory** label uses the **absolute path** of the chosen folder; other backdrops use the **relative path** (e.g. `seq/shot/plate`).
+
+### How backdrops are placed
+
+1. **Pass 1 (provisional stack)**  
+   Iterate directories in **depth-first** order. For each directory that has nodes: lay out nodes by extension at `(base_x, current_y)`, create a backdrop around them (label as above), record the bottom y in `placement_y_end`, then set `current_y += backdrop height + pad`. If the directory has a parent that was already placed, `current_y` is first forced to at least `placement_y_end[parent] + pad` so the child row is never above the parent row.
+
+2. **Pass 2 (nesting)**  
+   Iterate directories in **reverse depth-first** (deepest first). For each directory that has a backdrop and has subdirs: treat it as parent. Place each child backdrop **inside** the parent: first child at `(parent_x + side_pad, parent_content_bottom + bd_pad)` (so below the parent’s own nodes), next children stacked below with padding. Move each child backdrop and its **stored nodes** (`sub['nodes']`) by the same delta so contents stay with the backdrop. Resize the parent backdrop to contain all children.
+
+3. **Pass 3 (pack + root + z-order)**  
+   - **Pack**: Find **top-level** backdrops (not geometrically inside any other in the tree). Sort by `(y, x)` and reflow vertically so they are consecutive with no gaps; move each backdrop and its contents by the same `dy`.
+   - **Root container**: If the root directory has a backdrop, resize and reposition it so it contains the bbox of all backdrops and nodes in the tree (with outer padding). No empty root backdrop is created if the root had no files.
+   - **Z-order**: In **depth-first** order, assign `z_order` 0, 1, 2, … to each backdrop. Deeper in the tree ⇒ higher `z_order` ⇒ drawn on top (subfolder backdrops on top of parent backdrops). Then call `fix_backdrop_depth()`.
