@@ -164,10 +164,14 @@ def _knob_evaluate(knob):
 TEXT_KNOB_CLASSES = ('EvalString_Knob', 'String_Knob', 'Text_Knob', 'Script_Knob')
 
 
-def _knob_holds_text(knob):
-    """True if this knob type typically holds text that might contain paths."""
+def _knob_holds_text(knob, knob_name=''):
+    """True if this knob typically holds text that might contain paths (labels, etc.)."""
     try:
-        return knob is not None and knob.Class() in TEXT_KNOB_CLASSES
+        if knob is None:
+            return False
+        if knob_name == 'label':
+            return True
+        return knob.Class() in TEXT_KNOB_CLASSES
     except Exception:
         return False
 
@@ -184,14 +188,15 @@ _RE_FILE_PATHS = re.compile(
 def _find_paths_in_text(text):
     """
     Find substrings in text that look like file paths (absolute or UNC).
-    Returns list of (path_as_in_text,) for each match. Skips URLs (://).
+    Returns list of path strings; each is stripped of surrounding whitespace.
+    Skips URLs (://).
     """
     if not text or not isinstance(text, (str,)):
         return []
     out = []
     for m in _RE_FILE_PATHS.finditer(text):
-        path_as_in_text = m.group(1)
-        if '://' in path_as_in_text:
+        path_as_in_text = m.group(1).strip()
+        if not path_as_in_text or '://' in path_as_in_text:
             continue
         out.append(path_as_in_text)
     return out
@@ -384,7 +389,7 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
         try:
             for kname in node.knobs():
                 k = node.knob(kname)
-                if not _knob_holds_text(k):
+                if not _knob_holds_text(k, kname):
                     continue
                 try:
                     val = _knob_evaluate(k)
@@ -393,7 +398,9 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
                 except Exception:
                     continue
                 for path_as_in_text in _find_paths_in_text(val):
-                    path_norm = os.path.normpath(path_as_in_text.strip())
+                    path_norm = os.path.normpath(path_as_in_text.strip()).strip()
+                    if not path_norm:
+                        continue
                     dest_name = os.path.basename(path_norm)
                     exists = os.path.isfile(path_norm)
                     if not exists and path_norm not in seen_missing_embedded:
@@ -501,15 +508,36 @@ def collectFiles():
         summary = "Single: %s  |  Sequences: %s  |  In text: %s  |  Warnings: %s  |  ~%s files  |  ~%.2f GB" % (
             len(single_files), len(sequences), len(embedded_files), len(warnings), num_files, size_gb)
         print(summary)
+        # Show full warnings in a multiline panel so user can scroll through all issues
+        warn_lines = [
+            "=== Pre-flight summary ===",
+            summary,
+            "",
+            "~%s files  |  ~%.2f GB transfer" % (num_files, size_gb),
+            "",
+            "=== Warnings (%s) ===" % len(warnings) if warnings else "=== No warnings ===",
+        ]
         if warnings:
-            msg = "Pre-flight warnings (%s):\n\n(see Script Editor for full list)\n\n%s" % (
-                len(warnings), "\n".join(warnings[:5]) + ("\n..." if len(warnings) > 5 else ""))
+            warn_lines.append("")
+            warn_lines.extend(warnings)
         else:
-            msg = "Pre-flight OK. No missing files or range issues."
-        msg += "\n\n~%s files  |  ~%.2f GB transfer\n\nProceed with copy?" % (num_files, size_gb)
-        if not nuke.ask(msg):
-            print("COLLECT CANCELLED (user declined)")
-            return False
+            warn_lines.append("None")
+        full_text = "\n".join(warn_lines)
+        try:
+            warn_panel = nuke.Panel("Collect Files - Pre-flight")
+            if hasattr(warn_panel, 'addMultilineTextInput'):
+                warn_panel.addMultilineTextInput("Issues", full_text)
+            else:
+                warn_panel.addNotepad("Issues", full_text)
+            warn_panel.addButton("Cancel")
+            warn_panel.addButton("Proceed")
+            if warn_panel.show() != 1:
+                print("COLLECT CANCELLED (user declined)")
+                return False
+        except Exception:
+            if not nuke.ask(full_text[:500] + ("\n\n... (see Script Editor for full list)\n\nProceed with copy?" if len(full_text) > 500 else "\n\nProceed with copy?")):
+                print("COLLECT CANCELLED (user declined)")
+                return False
         copy_whole_sequence_dirs = False
         if any(s.get('extra_outside_range') for s in sequences):
             copy_whole_sequence_dirs = nuke.ask(
@@ -687,7 +715,32 @@ def collectFiles():
                             pass
                     else:
                         pass
-    
+
+                # Rewrite paths in text knobs (labels, etc.) to point at collected footage
+                new_path_prefix = '[file dirname [value root.name]]/footage/'
+                for e in embedded_files:
+                    try:
+                        node, kname = e['node'], e['knob_name']
+                        path_as_in_text = e['path_as_in_text']
+                        dest_name = e['dest_name']
+                        new_path = new_path_prefix + dest_name
+                        k = node.knob(kname)
+                        if k is None:
+                            continue
+                        try:
+                            raw = k.getValue() if hasattr(k, 'getValue') else k.value()
+                        except Exception:
+                            raw = k.value()
+                        if not isinstance(raw, str) or path_as_in_text not in raw:
+                            continue
+                        new_val = raw.replace(path_as_in_text, new_path, 1)
+                        if hasattr(k, 'setValue'):
+                            k.setValue(new_val)
+                        elif hasattr(k, 'setText'):
+                            k.setText(new_val)
+                    except Exception:
+                        pass
+
                 nuke.scriptSave()
                 print ('COLLECT DONE!!')
                 nuke.message('COLLECT DONE!!')
