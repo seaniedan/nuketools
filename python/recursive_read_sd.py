@@ -75,6 +75,7 @@ if m:
 import nuke
 import os
 import re
+import time
 from collections import defaultdict
 
 import backdrop_sd
@@ -106,11 +107,14 @@ def recursive_read(walkPaths= None, maxdepth= -1,
     extRead= ['.ari', '.avi', '.cin', '.dpx', '.dtex', '.exr', '.iff', '.gif', '.hdr', '.hdri', '.jpg', '.jpeg', '.mov', '.mp4' ,'.mxf', '.qt', '.pic', '.png', '.png16', '.psd', '.r3d', '.sgi', '.sgi16', '.rgb', '.rgba', '.tif', '.tiff', '.tif16', '.tiff16', '.ftif', '.ftiff', '.tga', '.targa', '.rla', '.yuv'], 
     extCamera= ['.cam'], extReadGeo= ['.abc', '.fbx', '.obj'], 
     extStickyNote= ['.csv', '.xml', '.txt', '.xpm'], 
-    extOCIOFileTransform= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'],
+    extOCIOFileTransform= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub','.cc'],
     extVectorfield= [],  # superseded by extOCIOFileTransform
-    extOCIOCDLTransform= ['.cc','.ccc'],
-    extIgnore= ['.autosave', '.dae', '.db', '.ma', '.mb', '.mel', '.meta', '.nk', '.nk~', '.nkple', '.gizmo', '.pkl', '.pickle', '.pfcp', '.pfmp', '.psb', '.rv', '.svn-base', '.svn/all-wcprops', '.svn/entries', '.swatches', '.tmp', '.tx', '.vars', '.xmp', '.zip'], 
-    includeString= None, excludeString= None, latest= False, debug_path= None):
+    extOCIOCDLTransform= ['.ccc'],
+    extParticleCache= ['.nkpc'],
+    extIgnore= ['.autosave', '.dae', '.db', '.ifd', '.ma', '.mb', '.mel', '.meta', '.nk', '.nk~', '.nkple', '.gizmo', '.pkl', '.pickle', '.pfcp', '.pfmp', '.psb', '.rv', '.sc', '.svn-base', '.svn/all-wcprops', '.svn/entries', '.swatches', '.tmp', '.tx', '.vars', '.xmp', '.zip'],
+    includeString= None, excludeString= None, latest= False, debug_path= None, timeout_seconds= 180):
+    # timeout_seconds: stop after this many seconds (default 180). Set to None to disable.
+    # More node types: see comment block below (ParticleCache, Precomp, etc.) or Nuke Nodes menu / Python API.
     # was     extVectorfield= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'], 
 
     #walkPaths= a directory or list of directories (e.g. '/a/dir/' or ['/path/to/dir','/other/path'])
@@ -136,6 +140,9 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             for name in files_in_cur:
                 # Only consider direct children: names with path separators belong in a subdir, not here
                 if '/' in name or os.path.sep in name:
+                    continue
+                # Ignore dot files
+                if name.startswith('.'):
                     continue
                 cur = os.path.join(current_dir, name)
                 if os.path.isdir(cur) or os.path.islink(cur):
@@ -299,13 +306,18 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         return node
 
     def make_OCIOFileTransform(file):
-        #OCIO 3d LUT
-        node= nuke.nodes.OCIOFileTransform(file=filepath)
+        # OCIO LUT / file transform (.cube, .cc, .csp, etc.)
+        node = nuke.nodes.OCIOFileTransform(file=file)
         return node        
 
     def make_OCIOCDLTransform(file):
-        #Open Color In Out Color Decision List
-        node= nuke.nodes.OCIOCDLTransform(file= file, read_from_file= True)
+        # Open Color In Out Color Decision List (.ccc)
+        node = nuke.nodes.OCIOCDLTransform(file=file, read_from_file=True)
+        return node
+
+    def make_ParticleCache(file):
+        node = nuke.nodes.ParticleCache()
+        node['file'].fromUserText('%s' % (file))
         return node
     '''
     #need more types for classes which use files, e.g. vectorfield: ***** = priority****
@@ -397,11 +409,13 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                         elif extension in extReadGeo:
                             return make_readgeo(file)
                         elif extension in extOCIOFileTransform:
-                            make_OCIOFileTransform(file)
+                            return make_OCIOFileTransform(file)
                         elif extension in extVectorfield:
-                            make_vectorfield(file)
+                            return make_vectorfield(file)
                         elif extension in extOCIOCDLTransform:
-                            make_OCIOCDLTransform(file)
+                            return make_OCIOCDLTransform(file)
+                        elif extension in extParticleCache:
+                            return make_ParticleCache(file)
                         else:
                             return make_stickynote_filename_only(file)
                         #pass#exlist.append(file)
@@ -479,6 +493,7 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         gh = int(nuke.toNode("preferences")["GridHeight"].value())
         bd_pad = max(gw * 2, gh * 2)
         all_created_nodes = []
+        start_time = time.time()
 
         def depth_first_list(tree):
             """Depth-first order: parent before children (for pass 2 nesting)."""
@@ -497,7 +512,12 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 level = [sub for node in level for sub in node.get('subdirs') or []]
             return out
 
+        next_base_x = 0
+        root_gap = int(max(gw * 6, bd_pad * 2))  # horizontal gap between multiple roots
+
         for root_index, walkPath in enumerate(sorted(set(walkPaths), key=_alphabetical_sort_key)):
+            if timeout_seconds is not None and (time.time() - start_time) > timeout_seconds:
+                break
             if not os.path.isdir(walkPath):
                 continue
             task = nuke.ProgressTask('Building directory tree')
@@ -509,8 +529,8 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 continue
 
             side_pad = int(gw * 2)
-            base_x = 0
-            base_y = root_index * (400 + bd_pad)
+            base_x = next_base_x
+            base_y = 0
 
             def layout_recursive(node, start_x, start_y, dfs_index_ref):
                 """Place file nodes only: layout by extension, then recurse into subdirs (each below the previous). Returns end_y."""
@@ -627,6 +647,10 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 root_bd.setXYpos(int(min_x - outer_pad), int(min_y - outer_pad))
                 root_bd['bdwidth'].setValue(int(max_x - min_x + 2 * outer_pad))
                 root_bd['bdheight'].setValue(int(max_y - min_y + 2 * outer_pad))
+
+            # So next root starts to the right of this one with a clear gap
+            if all_items:
+                next_base_x = max(n.xpos() + n.screenWidth() for n in all_items) + root_gap
 
             del task
 
