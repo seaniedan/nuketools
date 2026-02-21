@@ -73,14 +73,42 @@ if m:
 #########################################
 
 import nuke
+import os
+import re
+from collections import defaultdict
+
 import backdrop_sd
+
+
+def _natural_sort_key(s):
+    """Key for natural sort so e.g. shot2, shot10, shot100 order correctly.
+    Returns tuple of (type_order, value) so str and int are never compared."""
+    if s is None:
+        return ((0, ''),)
+    parts = re.split(r'(\d+)', str(s).lower())
+    out = []
+    for x in parts:
+        if not x:
+            continue
+        if x.isdigit():
+            out.append((1, int(x)))
+        else:
+            out.append((0, x))
+    return tuple(out) if out else ((0, ''),)
+
+
+def _alphabetical_sort_key(s):
+    """Key for simple case-insensitive alphabetical sort (for paths/files/classes)."""
+    return (0, str(s).lower() if s is not None else '')
+
 
 def recursive_read(walkPaths= None, maxdepth= -1, 
     extRead= ['.ari', '.avi', '.cin', '.dpx', '.dtex', '.exr', '.iff', '.gif', '.hdr', '.hdri', '.jpg', '.jpeg', '.mov', '.mp4' ,'.mxf', '.qt', '.pic', '.png', '.png16', '.psd', '.r3d', '.sgi', '.sgi16', '.rgb', '.rgba', '.tif', '.tiff', '.tif16', '.tiff16', '.ftif', '.ftiff', '.tga', '.targa', '.rla', '.yuv'], 
     extCamera= ['.cam'], extReadGeo= ['.abc', '.fbx', '.obj'], 
     extStickyNote= ['.csv', '.xml', '.txt', '.xpm'], 
-    extOCIOFileTransform= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'], 
-    extOCIOCDLTransform= ['.cc','.ccc'], 
+    extOCIOFileTransform= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'],
+    extVectorfield= [],  # superseded by extOCIOFileTransform
+    extOCIOCDLTransform= ['.cc','.ccc'],
     extIgnore= ['.autosave', '.dae', '.db', '.ma', '.mb', '.mel', '.meta', '.nk', '.nk~', '.nkple', '.gizmo', '.pkl', '.pickle', '.pfcp', '.pfmp', '.psb', '.rv', '.svn-base', '.svn/all-wcprops', '.svn/entries', '.swatches', '.tmp', '.tx', '.vars', '.xmp', '.zip'], 
     includeString= None, excludeString= None, latest= False):
     # was     extVectorfield= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'], 
@@ -93,37 +121,61 @@ def recursive_read(walkPaths= None, maxdepth= -1,
     #for 'latest': only keep latest files.. in each dir/level?
 
     #can specify dict to use to replace this one, e.g. if you're only interested in dpx, {'dpx': 'Read'}
-    import os
     import arrange_by_sd
     print(('walkPaths=', walkPaths))
 
-    def process_dir(currentDir, files= [], depth= 0):
-        #Process files within given directory currentDir
-        # Get a Nuke readable list of files and dirs in currentDir
-        #add to list 'fileList'
-        #to call first time, use
-        # process_dir(walkPath, files= [], depth= 0)
-
-        #global depth
-        filesInCurDir= nuke.getFileNameList(os.path.abspath(currentDir))
-        if filesInCurDir:
-            # Traverse through all files
-            for file in filesInCurDir:
-                curFile= os.path.join(currentDir, file)
- 
-                # Check if it's a normal file or directory
-                if os.path.isdir(curFile) or os.path.islink(curFile):
-                    # Enter into directory or link for further processing
-                    if depth < maxdepth or maxdepth == -1: #if maxdepth ==-1, we descend as far as possible
-                        print(("going into", curFile))
-                        depth+= 1
-                        process_dir(curFile, files= files, depth= depth)
+    def build_tree(current_dir, root_path, depth):
+        """Build a tree: {path, relative, files, subdirs}. Files and sibling dirs natural-sorted."""
+        rel = os.path.relpath(current_dir, root_path).replace('\\', '/')
+        if rel == '.':
+            rel = ''
+        files_in_cur = nuke.getFileNameList(os.path.abspath(current_dir))
+        files = []
+        subdirs = []
+        if files_in_cur:
+            for name in files_in_cur:
+                cur = os.path.join(current_dir, name)
+                if os.path.isdir(cur) or os.path.islink(cur):
+                    if depth < maxdepth or maxdepth == -1:
+                        print(("going into", cur))
+                        subdirs.append(build_tree(cur, root_path, depth + 1))
                 else:
-                    #Add to the file list
-                    files.append(curFile)
-            return files
-        else:
-            return []
+                    files.append(cur)
+        files.sort(key=_alphabetical_sort_key)
+        subdirs.sort(key=lambda t: _alphabetical_sort_key(t['relative']))
+        return {'path': current_dir, 'relative': rel, 'files': files, 'subdirs': subdirs}
+
+    def _snap_to_grid(val, grid):
+        """Snap value to grid (align down)."""
+        return int(val // grid) * int(grid)
+
+    def layout_nodes_by_class(nodes, start_x, start_y):
+        """Place nodes in rows by class: one row per node type, left-to-right within row.
+        Skips BackdropNode so only actual content nodes are laid out. Snaps to grid."""
+        content = [n for n in nodes if n.Class() != 'BackdropNode']
+        if not content:
+            return
+        gw = int(nuke.toNode("preferences")["GridWidth"].value())
+        gh = int(nuke.toNode("preferences")["GridHeight"].value())
+        by_class = defaultdict(list)
+        for n in content:
+            by_class[n.Class()].append(n)
+        def node_order(node):
+            try:
+                v = node['file'].value()
+                return _alphabetical_sort_key(v) if v else _alphabetical_sort_key(node.name())
+            except Exception:
+                return _alphabetical_sort_key(node.name())
+        row_y = _snap_to_grid(start_y, gh)
+        for cls in sorted(by_class.keys(), key=_alphabetical_sort_key):
+            group = sorted(by_class[cls], key=node_order)
+            col_x = _snap_to_grid(start_x, gw)
+            row_h = 0
+            for n in group:
+                n.setXYpos(col_x, row_y)
+                row_h = max(row_h, n.screenHeight())
+                col_x += _snap_to_grid(n.screenWidth() + gw, gw)
+            row_y += _snap_to_grid(row_h + gh, gh)
 
     #define the types:
     def make_read(image):
@@ -166,21 +218,20 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             finalLabel = os.path.basename(msg) if msg else "Invalid file path"
             node = nuke.createNode('StickyNote')
             node['label'].setValue(finalLabel)
-            return
-        
+            return node
         try:
             with open(msg, "r", encoding='utf-8', errors='ignore') as filename:
                 myLabel = filename.read(100)
             finalLabel = ("%s\n%s") % (msg, myLabel)
             node = nuke.createNode('StickyNote')
             node['label'].setValue(finalLabel)
-            return
+            return node
         except (IOError, OSError, Exception) as e:
             # If file reading fails, create a sticky note with error info
             finalLabel = ("%s\nError reading file: %s") % (msg, str(e))
             node = nuke.createNode('StickyNote')
             node['label'].setValue(finalLabel)
-            return
+            return node
 
     def make_camera(msg):
         #node= nuke.createNode('Camera2')
@@ -396,112 +447,153 @@ def recursive_read(walkPaths= None, maxdepth= -1,
     #so now we have either a list of directories, a single directory (string) or nothing.
     if walkPaths:
         if type(walkPaths) == str:
-            #turn it into a list so we always do the loop
-            walkPaths= [walkPaths]
+            walkPaths = [walkPaths]
 
-        #NEED TO GET RID OF THIS FOR LOOP: WANT IT TO MAKE A SET OF ALL THE THINGS TO LOAD, THEN MAKE MENU, THEN LOAD.
-        #this  is kond of working, but better to have two processes with taskbar: 
-        #1 find dirs
-        #2 find seqs in thos dirs
-        #
-        #we've been given a walkpath of many 
-        #set task bar - this is a bit silly because we only usually see one dir being read, and it hangs for a long time on big dirs.
-        task= nuke.ProgressTask('Walking directories')
-        for i, walkPath in enumerate(set(walkPaths)):
-            if task.isCancelled():
-                break
-            # UPDATE PROGRESS BAR
-            task.setMessage( 'Processing directory %s' % walkPath )
-            task.setProgress( int( float(i) / float(len(walkPath))*100) )
-            #print 'walkPath=', walkPath
-            #exlist= []
-            #files= [] #list of found files/sequences in nuke format
-            #depth = 0 #reset current depth in the tree
-            files= process_dir(walkPath, files= [], depth= 0)#this adds to 'files'
-            #print 'walkPath=', walkPath, '\nfiles\n----\n'
-            #highest common dir
-            hcf= os.path.dirname(os.path.commonprefix(files))
-            #del(task)
-            #set task bar
+        gw = int(nuke.toNode("preferences")["GridWidth"].value())
+        gh = int(nuke.toNode("preferences")["GridHeight"].value())
+        bd_pad = max(gw * 2, gh * 2)
+        all_created_nodes = []
 
-            #discrete groups
-            import itertools # better to do this earlier! Remember you have to sort the data before grouping -groupby method actually just iterates through a list and whenever the key changes it creates a new group. Be careful about having different sortDiscrete criteria to those which we sorted on!!!
-            groupNodes= [] #group of similar nodes
-            uniquekeys= [] #do i need?
-            files.sort()
-            #sortDiscrete= lambda filepath: os.path.dirname(filepath.split(hcf)[1]).split('/')[0]
-            sortDiscrete= lambda filepath: os.path.dirname(filepath.split(hcf)[1]).split('/')[1]
+        def depth_first_list(tree):
+            """Depth-first order: parent before children (natural sort already in tree)."""
+            out = [tree]
+            for sub in tree['subdirs']:
+                out.extend(depth_first_list(sub))
+            return out
 
-            #print "\n".join([sortDiscrete(filepath) for filepath in files])
-            for k, g in itertools.groupby(files, key= sortDiscrete):
-                groupNodes.append(list(g))      # Store group iterator as a list
-                uniquekeys.append(k)
-                
-                #print 'groups', groupNodes
-                print(('uniquekeys', uniquekeys))
+        for root_index, walkPath in enumerate(sorted(set(walkPaths), key=_alphabetical_sort_key)):
+            if not os.path.isdir(walkPath):
+                continue
+            task = nuke.ProgressTask('Building directory tree')
+            task.setMessage('Scanning %s' % walkPath)
+            tree = build_tree(walkPath, walkPath, 0)
+            df = depth_first_list(tree)
+            total_dirs = len(df)
+            if total_dirs == 0:
+                continue
 
-        
-
-            task= nuke.ProgressTask('Loading files')
-            gh= nuke.toNode("preferences")["GridHeight"].value()
-            for j, g in enumerate(groupNodes):
-                returnNodes= []
-
-                for filepath in g:
-
-                    if task.isCancelled():
-                        break
-                    # UPDATE PROGRESS BAR
-                    task.setMessage( 'Loading file %s' % filepath )
-                    task.setProgress( int( float(i) / float(len(walkPath))*100) )
-
-                    print((j, filepath))
-                    #fix windows paths
-                    #filepath= file.replace("\\", "/")
-                    #print file
-                    #(nuke node, original filepath):
+            # Pass 1: create nodes and backdrops per directory (provisional vertical stack)
+            task.setMessage('Loading files (pass 1)')
+            base_x = 0
+            current_y = root_index * (400 + bd_pad)  # offset per root
+            for idx, node in enumerate(df):
+                if task.isCancelled():
+                    break
+                task.setMessage('Directory %s (%d/%d)' % (node['relative'] or '(root)', idx + 1, total_dirs))
+                task.setProgress(int(100.0 * (idx + 1) / total_dirs))
+                rel = node['relative']
+                # Root directory: use absolute path; else use relative path (so one backdrop = full path when no files in parent dirs)
+                label = os.path.abspath(walkPath) if not rel else rel
+                files_here = node['files'][:]
+                files_here.sort(key=_alphabetical_sort_key)
+                returnNodes = []
+                for filepath in files_here:
                     returnNodes.append(nuke_loader(filepath))
-                nodes= [node for node in returnNodes if node is not None]
-                if nodes:
-                    label= uniquekeys[j]
-                    if not label:
-                        #just one group - take last dir
-                        label= os.path.dirname(filepath)#.split('/')[-1]]                    
-                    bd= backdrop_sd.make_backdrop(nodes, label= label)
-                    [n.setXYpos(int(n.xpos()), int(n.ypos()+ (j*20*gh))) for n in nodes]
-                    bd.setXYpos(int(bd.xpos()),int(bd.ypos()+ (j*20*gh)) )
-                '''if exlist:
-                    finalLabel= "Couldn't load\n"
-                    for line in exlist:
-                        finalLabel+= line+ '\n'
-                    node= nuke.createNode('StickyNote')
-                    node['label'].setValue(finalLabel)'''
-                
-            #call 'layout' on the resulting nodes
-            #default = by last dir (backdrop it) then by class
-            #but for now...
-            #make new list
-            del(task)
-        
-        #print 'returnNodes', returnNodes
-        #print 'nodes',nodes
-        if len(nodes)> 1: #  * AND IF EACH DIR HAS >1 items - how to do that?
-            #should really sort by directories found in above code, but for now:
-            #arrange_by_sd.arrange_by( nodes= nodes, sortKey= lambda node: node['file'].value().lower(), sortDiscrete= lambda node: node['file'].value().split(os.path.dirname(os.path.commonprefix([node['file'].value() for node in nodes])))[1].split('/')[1])  
-            #arrange_by_sd.arrange_by( nodes= nodes, sortKey= lambda node: nuke.filename(node, nuke.REPLACE).lower(), sortDiscrete= lambda node: node['file'].value().split(os.path.dirname(os.path.commonprefix([node['file'].value() for node in nodes])))[1].split('/')[1])              
-            '''print 'nodes', [nodes[0] for nodes in returnNodes]
-            print 'sortKey', nodes[1].lower()
-            print 'sortDiscrete', os.path.dirname(nodes[1].split(hcf)[1]).split('/')[0]
-            arrange_by_sd.arrange_by( nodes= nodes, 
-                sortKey= lambda node: nodes[1].lower(), 
-                sortDiscrete= lambda node: os.path.dirname(nodes[1].split(hcf)[1]).split('/')[0])'''
-        #return 
-        #clear selected - in future I could check if we used 'potential_walkPaths'?
-        if nodes:#- need to reset 'nodes'???
-            [node.setSelected(False) for node in nuke.allNodes()]
-            #print 11111
-            #print [node for node in nodes]
-            [node.setSelected(True) for node in nodes]
+                nodes_here = [n for n in returnNodes if n is not None]
+                # Only create a backdrop when this directory has at least one file that produced a node
+                if not nodes_here:
+                    node['backdrop'] = None
+                    node['nodes'] = []
+                    continue
+                all_created_nodes.extend(nodes_here)
+                layout_nodes_by_class(nodes_here, base_x, current_y)
+                bd = backdrop_sd.make_backdrop(nodes_here, label=label)
+                node['backdrop'] = bd
+                node['nodes'] = nodes_here
+                # Stack next directory below this backdrop
+                current_y += bd.screenHeight() + bd_pad
+
+            # Pass 2: nest child backdrops inside parent backdrops
+            task.setMessage('Nesting backdrops (pass 2)')
+            reverse_df = list(reversed(df))
+            for node in reverse_df:
+                if task.isCancelled():
+                    break
+                if not node.get('subdirs') or not node.get('backdrop'):
+                    continue
+                parent_bd = node['backdrop']
+                px, py = parent_bd.xpos(), parent_bd.ypos()
+                pw, ph = parent_bd.screenWidth(), parent_bd.screenHeight()
+                top_pad = int(gh * 4)
+                side_pad = int(gw * 2)
+                child_y = py + top_pad
+                child_x = px + side_pad
+                max_child_right = child_x
+                max_child_bottom = child_y
+                for sub in node['subdirs']:
+                    child_bd = sub.get('backdrop')
+                    if not child_bd:
+                        continue
+                    old_x, old_y = child_bd.xpos(), child_bd.ypos()
+                    dx = child_x - old_x
+                    dy = child_y - old_y
+                    contents = [n for n in backdrop_sd.nodes_in_backdrop(child_bd) if n != child_bd]
+                    child_bd.setXYpos(int(child_x), int(child_y))
+                    for n in contents:
+                        n.setXYpos(int(n.xpos() + dx), int(n.ypos() + dy))
+                    max_child_right = max(max_child_right, child_x + child_bd.screenWidth())
+                    max_child_bottom = max(max_child_bottom, child_y + child_bd.screenHeight())
+                    child_y = max_child_bottom + bd_pad
+                new_w = max(pw, max_child_right - px + side_pad)
+                new_h = max(ph, max_child_bottom - py + top_pad)
+                parent_bd['bdwidth'].setValue(new_w)
+                parent_bd['bdheight'].setValue(new_h)
+
+            # Pass 3: pack top-level backdrops to remove gaps, then root backdrop contains all
+            def all_backdrops_and_nodes_in_tree(t):
+                out = []
+                if t.get('backdrop'):
+                    out.append(t['backdrop'])
+                out.extend(t.get('nodes') or [])
+                for sub in t.get('subdirs') or []:
+                    out.extend(all_backdrops_and_nodes_in_tree(sub))
+                return out
+
+            all_backdrops_in_tree = [t['backdrop'] for t in df if t.get('backdrop')]
+            # Top-level = not inside any other backdrop in this tree
+            def is_inside_other(bd, exclude=()):
+                for other in all_backdrops_in_tree:
+                    if other is bd or other in exclude:
+                        continue
+                    if backdrop_sd.nodeIsInside(bd, other):
+                        return True
+                return False
+            top_level = [bd for bd in all_backdrops_in_tree if not is_inside_other(bd)]
+            top_level.sort(key=lambda b: (b.ypos(), b.xpos()))
+            # Pack vertically to remove gaps
+            if len(top_level) > 1:
+                pack_y = top_level[0].ypos()
+                for bd in top_level:
+                    dy = pack_y - bd.ypos()
+                    if dy != 0:
+                        bd.setXYpos(int(bd.xpos()), int(pack_y))
+                        for n in backdrop_sd.nodes_in_backdrop(bd):
+                            if n != bd:
+                                n.setXYpos(int(n.xpos()), int(n.ypos() + dy))
+                    pack_y += bd.screenHeight() + bd_pad
+
+            root_node = df[0]
+            all_items = all_backdrops_and_nodes_in_tree(tree)
+            # Only create/enlarge root backdrop when root already has one (had files). No empty backdrops.
+            if all_items and root_node.get('backdrop'):
+                min_x = min(n.xpos() for n in all_items)
+                min_y = min(n.ypos() for n in all_items)
+                max_x = max(n.xpos() + n.screenWidth() for n in all_items)
+                max_y = max(n.ypos() + n.screenHeight() for n in all_items)
+                outer_pad = int(max(gw * 3, gh * 3))
+                root_bd = root_node['backdrop']
+                root_bd.setXYpos(int(min_x - outer_pad), int(min_y - outer_pad))
+                root_bd['bdwidth'].setValue(int(max_x - min_x + 2 * outer_pad))
+                root_bd['bdheight'].setValue(int(max_y - min_y + 2 * outer_pad))
+                backdrop_sd.fix_backdrop_depth()
+
+            del task
+
+        if all_created_nodes:
+            for n in nuke.allNodes():
+                n.setSelected(False)
+            for n in all_created_nodes:
+                n.setSelected(True)
     else:
         return None
     
@@ -511,8 +603,13 @@ def recursive_read(walkPaths= None, maxdepth= -1,
 
 
 if __name__ == "__main__":
-    #runs when testing:
-    recursive_read(walkPaths= None, maxdepth= -1)
+    recursive_read(walkPaths=None, maxdepth=-1)
+
+# Run from Nuke's script editor (reload after editing):
+#   import importlib
+#   import recursive_read_sd
+#   importlib.reload(recursive_read_sd)
+#   recursive_read_sd.recursive_read()
 
 
 
