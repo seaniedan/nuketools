@@ -52,37 +52,58 @@ import sys
 import shutil
 import re
 import glob
+import subprocess
 import threading
 import time
 import webbrowser
 
+# Transfer mode: copy, move, symlink, hardlink
+TRANSFER_MODES = ('copy', 'move', 'symlink', 'hardlink')
 
-def link_file(src, dst):
-    #sean 2017
-    #hard link src and dst. If src is a symlink, link the target file.
-    import os
-    try:
-        if os.path.islink(src):
-            #don't want to hardlink symlinks. Link to the original file instead.
-            os.link(os.path.realpath(src), dst)
-        else:
-            os.link(src, dst)
-    except:
-        #maybe we're copying between devices
+
+def _rsync_path():
+    """Return path to rsync executable if available, else None."""
+    if sys.platform == 'win32':
+        return shutil.which('rsync') or shutil.which('rsync.exe')
+    return shutil.which('rsync')
+
+
+def transfer_file(src, dst, mode):
+    """
+    Transfer one file: copy, move, symlink, or hardlink.
+    mode in TRANSFER_MODES. On failure (e.g. cross-filesystem hardlink), falls back to copy.
+    """
+    if mode == 'copy':
         shutil.copy2(src, dst)
-    return# 'linked.'
+        return
+    if mode == 'move':
+        try:
+            shutil.move(src, dst)
+        except OSError:
+            shutil.copy2(src, dst)
+            try:
+                os.remove(src)
+            except OSError:
+                pass
+        return
+    if mode == 'symlink':
+        try:
+            target = os.path.realpath(src) if os.path.exists(src) else src
+            os.symlink(target, dst)
+        except OSError:
+            shutil.copy2(src, dst)
+        return
+    if mode == 'hardlink':
+        try:
+            if os.path.islink(src):
+                os.link(os.path.realpath(src), dst)
+            else:
+                os.link(src, dst)
+        except OSError:
+            shutil.copy2(src, dst)
+        return
+    shutil.copy2(src, dst)
 
-'''def link_file(src, dst):
-    #sean 2017
-    #hard link src and dst. If src is a symlink, link the target file.
-    import os
-    if os.path.islink(src):
-        #don't want to hardlink symlinks. Link to the original file instead.
-        os.link(os.path.realpath(src), dst)
-    else:
-        os.link(src, dst)
-
-    return# 'linked.'''
 
 # Child Functions
 def myBlog():
@@ -92,13 +113,20 @@ def myBlog():
 def collectPanel():
     colPanel = nuke.Panel("Collect Files 1.2 by Mariano Antico")
     colPanel.addFilenameSearch("Output Path:", "")
+    rsync_available = _rsync_path() is not None
+    colPanel.addEnumerationPulldown("Transfer mode:", "copy move symlink hardlink")
+    colPanel.addBooleanCheckBox("Use rsync when available", rsync_available)
     colPanel.addButton("Cancel")
     colPanel.addButton("OK")
 
     retVar = colPanel.show()
     pathVar = colPanel.value("Output Path:")
+    transfer_mode = colPanel.value("Transfer mode:").strip().lower()
+    if transfer_mode not in TRANSFER_MODES:
+        transfer_mode = "copy"
+    use_rsync = bool(colPanel.value("Use rsync when available"))
 
-    return (retVar, pathVar)
+    return (retVar, pathVar, transfer_mode, use_rsync)
 
 # Check files
 def checkForKnob(node, checkKnob ):
@@ -117,6 +145,19 @@ def has_file_knob(node):
         return k is not None and k.Class() == 'File_Knob'
     except Exception:
         return False
+
+
+def _knob_evaluate(knob):
+    """Return evaluated (resolved) value for TCL expressions; fallback to .value()."""
+    try:
+        if hasattr(knob, 'evaluate'):
+            return knob.evaluate()
+        return knob.value()
+    except Exception:
+        try:
+            return knob.value()
+        except Exception:
+            return None
 
 
 # Knob classes that hold text we scan for embedded file paths (labels, strings, etc.)
@@ -229,7 +270,10 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
     for fileNode in nuke_nodes:
         if not has_file_knob(fileNode) or checkForKnob(fileNode, 'Render'):
             continue
-        fileNodePath = fileNode['file'].value().strip()
+        fileNodePath = _knob_evaluate(fileNode['file'])
+        if fileNodePath is None:
+            continue
+        fileNodePath = str(fileNodePath).strip()
         if not fileNodePath:
             continue
         readFilename = fileNodePath.split("/")[-1]
@@ -248,8 +292,13 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
                 if not os.path.isfile(fileNodePath):
                     warnings.append("MISSING: %s" % fileNodePath)
             else:
-                frameFirst = int(fileNode['first'].value())
-                frameLast = int(fileNode['last'].value())
+                first_val = _knob_evaluate(fileNode['first'])
+                last_val = _knob_evaluate(fileNode['last'])
+                try:
+                    frameFirst = int(first_val) if first_val is not None else 0
+                    frameLast = int(last_val) if last_val is not None else 0
+                except (TypeError, ValueError):
+                    frameFirst = frameLast = 0
                 if frameFirst == frameLast:
                     single_files.append({
                         'path': fileNodePath,
@@ -338,8 +387,8 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
                 if not _knob_holds_text(k):
                     continue
                 try:
-                    val = k.value()
-                    if not isinstance(val, str):
+                    val = _knob_evaluate(k)
+                    if val is None or not isinstance(val, str):
                         continue
                 except Exception:
                     continue
@@ -367,6 +416,11 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
 # Parent Function
 def collectFiles():
     panelResult = collectPanel()
+    if len(panelResult) == 4:
+        retVar, pathVar, transfer_mode, use_rsync = panelResult
+    else:
+        retVar, pathVar = panelResult[0], panelResult[1]
+        transfer_mode, use_rsync = 'copy', bool(_rsync_path())
 
     #copy script to target directory
     script2Copy = nuke.root()['name'].value()
@@ -383,10 +437,11 @@ def collectFiles():
         return _path_is_sequence(p)
 
     cancelCollect = 0
+    rsync_exe = _rsync_path() if use_rsync else None
 
     # hit OK
-    if panelResult[0] == 1 and panelResult[1] != '':
-        targetPath = panelResult[1]
+    if retVar == 1 and pathVar != '':
+        targetPath = pathVar
 
         # Check to make sure a file path is not passed through
         if os.path.isfile(targetPath):
@@ -494,7 +549,7 @@ def collectFiles():
                 if os.path.exists(newFilenamePath):
                     print((newFilenamePath + '     DUPLICATED'))
                 elif exists:
-                    link_file(path, newFilenamePath)
+                    transfer_file(path, newFilenamePath, transfer_mode)
                     print((newFilenamePath + '     COPIED'))
                 else:
                     print((newFilenamePath + '     MISSING'))
@@ -511,7 +566,7 @@ def collectFiles():
                 if os.path.exists(newFilenamePath):
                     print((newFilenamePath + '     DUPLICATED'))
                 elif os.path.isfile(path_norm):
-                    link_file(path_norm, newFilenamePath)
+                    transfer_file(path_norm, newFilenamePath, transfer_mode)
                     print((newFilenamePath + '     COPIED'))
                 else:
                     print((newFilenamePath + '     MISSING'))
@@ -536,24 +591,48 @@ def collectFiles():
                     frames_to_copy = [f for f in frames_on_disk if node_first <= f <= node_last]
                 else:
                     frames_to_copy = frames_on_disk
-                for frame in frames_to_copy:
-                    if task.isCancelled():
-                        cancelCollect = 1
-                        break
-                    originalSeq = _sequence_frame_file_path(
-                        fileNodePath, seq['dir'], frame, pad)
-                    frameSeq = os.path.basename(originalSeq)
-                    newSeq = newFilenamePath + frameSeq
-                    task.setMessage("Collecting: " + frameSeq)
-                    task.setProgress(int(done * 100 / max(1, total)))
-                    if os.path.exists(newSeq):
-                        print((newSeq + '     DUPLICATED'))
-                    elif os.path.exists(originalSeq):
-                        link_file(originalSeq, newSeq)
-                        print((newSeq + '     COPIED'))
-                    else:
-                        print((newSeq + '     MISSING'))
-                    done += 1
+                # Use rsync for whole-dir copy/move when available
+                use_rsync_here = (rsync_exe and transfer_mode in ('copy', 'move') and
+                                  frames_to_copy == frames_on_disk and len(frames_to_copy) > 0)
+                if use_rsync_here:
+                    src_dir = seq['dir'].rstrip(os.sep) + os.sep
+                    try:
+                        cmd = [rsync_exe, '-a', '--progress', src_dir, newFilenamePath]
+                        task.setMessage("Rsync: " + dirSeq)
+                        subprocess.run(cmd, check=True, timeout=3600)
+                        for _ in frames_to_copy:
+                            done += 1
+                        print((newFilenamePath + '     RSYNC (directory)'))
+                        if transfer_mode == 'move':
+                            for frame in frames_to_copy:
+                                fp = _sequence_frame_file_path(fileNodePath, seq['dir'], frame, pad)
+                                try:
+                                    if os.path.isfile(fp):
+                                        os.remove(fp)
+                                except OSError:
+                                    pass
+                    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+                        use_rsync_here = False
+                        print("Rsync failed (%s), falling back to per-file" % e)
+                if not use_rsync_here:
+                    for frame in frames_to_copy:
+                        if task.isCancelled():
+                            cancelCollect = 1
+                            break
+                        originalSeq = _sequence_frame_file_path(
+                            fileNodePath, seq['dir'], frame, pad)
+                        frameSeq = os.path.basename(originalSeq)
+                        newSeq = newFilenamePath + frameSeq
+                        task.setMessage("Collecting: " + frameSeq)
+                        task.setProgress(int(done * 100 / max(1, total)))
+                        if os.path.exists(newSeq):
+                            print((newSeq + '     DUPLICATED'))
+                        elif os.path.exists(originalSeq):
+                            transfer_file(originalSeq, newSeq, transfer_mode)
+                            print((newSeq + '     COPIED'))
+                        else:
+                            print((newSeq + '     MISSING'))
+                        done += 1
                 print('')
 
             if (cancelCollect == 0):
@@ -621,10 +700,10 @@ def collectFiles():
             del task
 
     # If they just hit OK on the default ellipsis...
-    elif panelResult[0] == 1 and panelResult[1] == '':
+    elif retVar == 1 and pathVar == '':
         nuke.message("Select a path")
         return False
 
     # hit CANCEL
     else:
-        print ('COLLECT CANCELLED')
+        print('COLLECT CANCELLED')
