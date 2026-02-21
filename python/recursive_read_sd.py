@@ -149,17 +149,40 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         """Snap value to grid (align down)."""
         return int(val // grid) * int(grid)
 
-    def layout_nodes_by_class(nodes, start_x, start_y):
-        """Place nodes in rows by class: one row per node type, left-to-right within row.
-        Skips BackdropNode so only actual content nodes are laid out. Snaps to grid."""
+    def _node_file_extension(node):
+        """File extension for layout grouping (e.g. '.exr', '.txt'). Fallback to class if no file."""
+        try:
+            v = node['file'].value()
+            if v:
+                return os.path.splitext(v)[1].lower() or node.Class()
+        except Exception:
+            pass
+        # StickyNotes (e.g. .csv, .txt) have path in label first line
+        try:
+            label = node['label'].value()
+            if label and '\n' in label:
+                first_line = label.split('\n')[0].strip()
+            else:
+                first_line = label or ''
+            if first_line and (first_line.startswith('/') or first_line.startswith(os.sep) or ':' in first_line or len(first_line) > 3):
+                ext = os.path.splitext(first_line)[1].lower()
+                if ext:
+                    return ext
+        except Exception:
+            pass
+        return node.Class()
+
+    def layout_nodes_by_extension(nodes, start_x, start_y):
+        """Place nodes in rows by file extension: one row per extension, left-to-right within row.
+        Skips BackdropNode. Snaps to grid."""
         content = [n for n in nodes if n.Class() != 'BackdropNode']
         if not content:
             return
         gw = int(nuke.toNode("preferences")["GridWidth"].value())
         gh = int(nuke.toNode("preferences")["GridHeight"].value())
-        by_class = defaultdict(list)
+        by_ext = defaultdict(list)
         for n in content:
-            by_class[n.Class()].append(n)
+            by_ext[_node_file_extension(n)].append(n)
         def node_order(node):
             try:
                 v = node['file'].value()
@@ -167,8 +190,8 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             except Exception:
                 return _alphabetical_sort_key(node.name())
         row_y = _snap_to_grid(start_y, gh)
-        for cls in sorted(by_class.keys(), key=_alphabetical_sort_key):
-            group = sorted(by_class[cls], key=node_order)
+        for ext in sorted(by_ext.keys(), key=_alphabetical_sort_key):
+            group = sorted(by_ext[ext], key=node_order)
             col_x = _snap_to_grid(start_x, gw)
             row_h = 0
             for n in group:
@@ -455,10 +478,20 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         all_created_nodes = []
 
         def depth_first_list(tree):
-            """Depth-first order: parent before children (natural sort already in tree)."""
+            """Depth-first order: parent before children (for pass 2 nesting)."""
             out = [tree]
             for sub in tree['subdirs']:
                 out.extend(depth_first_list(sub))
+            return out
+
+        def breadth_first_list(tree):
+            """Breadth-first order: root, then all immediate subdirs, then their subdirs, etc.
+            So files (root) appear first, then subdirectories below."""
+            out = []
+            level = [tree]
+            while level:
+                out.extend(level)
+                level = [sub for node in level for sub in node.get('subdirs') or []]
             return out
 
         for root_index, walkPath in enumerate(sorted(set(walkPaths), key=_alphabetical_sort_key)):
@@ -467,7 +500,8 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             task = nuke.ProgressTask('Building directory tree')
             task.setMessage('Scanning %s' % walkPath)
             tree = build_tree(walkPath, walkPath, 0)
-            df = depth_first_list(tree)
+            # Breadth-first so root (files) first, then subdirs level by level
+            df = breadth_first_list(tree)
             total_dirs = len(df)
             if total_dirs == 0:
                 continue
@@ -496,7 +530,7 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                     node['nodes'] = []
                     continue
                 all_created_nodes.extend(nodes_here)
-                layout_nodes_by_class(nodes_here, base_x, current_y)
+                layout_nodes_by_extension(nodes_here, base_x, current_y)
                 bd = backdrop_sd.make_backdrop(nodes_here, label=label)
                 node['backdrop'] = bd
                 node['nodes'] = nodes_here
@@ -516,7 +550,13 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 pw, ph = parent_bd.screenWidth(), parent_bd.screenHeight()
                 top_pad = int(gh * 4)
                 side_pad = int(gw * 2)
-                child_y = py + top_pad
+                # Start children below the parent's own content (so they don't overlap parent's files)
+                parent_nodes = node.get('nodes') or []
+                if parent_nodes:
+                    parent_content_bottom = max(n.ypos() + n.screenHeight() for n in parent_nodes)
+                    child_y = int(parent_content_bottom + bd_pad)
+                else:
+                    child_y = py + top_pad
                 child_x = px + side_pad
                 max_child_right = child_x
                 max_child_bottom = child_y
@@ -527,10 +567,12 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                     old_x, old_y = child_bd.xpos(), child_bd.ypos()
                     dx = child_x - old_x
                     dy = child_y - old_y
-                    contents = [n for n in backdrop_sd.nodes_in_backdrop(child_bd) if n != child_bd]
+                    # Use stored nodes for this dir so we always move the right contents (avoids geometry glitches)
+                    contents = list(sub.get('nodes') or [])
                     child_bd.setXYpos(int(child_x), int(child_y))
                     for n in contents:
-                        n.setXYpos(int(n.xpos() + dx), int(n.ypos() + dy))
+                        if n and n.Class() != 'BackdropNode':
+                            n.setXYpos(int(n.xpos() + dx), int(n.ypos() + dy))
                     max_child_right = max(max_child_right, child_x + child_bd.screenWidth())
                     max_child_bottom = max(max_child_bottom, child_y + child_bd.screenHeight())
                     child_y = max_child_bottom + bd_pad
