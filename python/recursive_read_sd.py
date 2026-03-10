@@ -81,6 +81,33 @@ from collections import defaultdict
 import backdrop_sd
 
 
+# -----------------------------------------------------------------------------
+# Extension -> loader config (single source of truth; overridable via recursive_read params)
+# Loader names: read, camera, readgeo, stickynote, ociofile, ociocdl, particlecache, vectorfield
+# -----------------------------------------------------------------------------
+EXT_LOADER_CONFIG = {
+    'read': [
+        '.ari', '.avi', '.cin', '.dpx', '.dtex', '.exr', '.iff', '.gif', '.hdr', '.hdri',
+        '.jpg', '.jpeg', '.mov', '.mp4', '.mxf', '.qt', '.pic', '.png', '.png16', '.psd',
+        '.r3d', '.sgi', '.sgi16', '.rgb', '.rgba', '.tif', '.tiff', '.tif16', '.tiff16',
+        '.ftif', '.ftiff', '.tga', '.targa', '.rla', '.yuv',
+    ],
+    'camera': ['.cam'],
+    'readgeo': ['.abc', '.fbx', '.obj'],
+    'stickynote': ['.csv', '.xml', '.txt', '.xpm'],
+    'ociofile': ['.csp', '.cms', '.cube', '.3dl', '.blut', '.vf', '.cub', '.cc'],
+    'ociocdl': ['.ccc'],
+    'particlecache': ['.nkpc'],
+    'vectorfield': [],  # superseded by ociofile
+}
+EXT_IGNORE_DEFAULT = [
+    '.autosave', '.dae', '.db', '.ifd', '.ma', '.mb', '.mel', '.meta', '.nk', '.nk~',
+    '.nkple', '.gizmo', '.pkl', '.pickle', '.pfcp', '.pfmp', '.psb', '.rv', '.sc',
+    '.svn-base', '.svn/all-wcprops', '.svn/entries', '.swatches', '.tmp', '.tx',
+    '.vars', '.xmp', '.zip',
+]
+
+
 def _natural_sort_key(s):
     """Key for natural sort so e.g. shot2, shot10, shot100 order correctly.
     Returns tuple of (type_order, value) so str and int are never compared."""
@@ -103,19 +130,24 @@ def _alphabetical_sort_key(s):
     return (0, str(s).lower() if s is not None else '')
 
 
-def recursive_read(walkPaths= None, maxdepth= -1, 
-    extRead= ['.ari', '.avi', '.cin', '.dpx', '.dtex', '.exr', '.iff', '.gif', '.hdr', '.hdri', '.jpg', '.jpeg', '.mov', '.mp4' ,'.mxf', '.qt', '.pic', '.png', '.png16', '.psd', '.r3d', '.sgi', '.sgi16', '.rgb', '.rgba', '.tif', '.tiff', '.tif16', '.tiff16', '.ftif', '.ftiff', '.tga', '.targa', '.rla', '.yuv'], 
-    extCamera= ['.cam'], extReadGeo= ['.abc', '.fbx', '.obj'], 
-    extStickyNote= ['.csv', '.xml', '.txt', '.xpm'], 
-    extOCIOFileTransform= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub','.cc'],
-    extVectorfield= [],  # superseded by extOCIOFileTransform
-    extOCIOCDLTransform= ['.ccc'],
-    extParticleCache= ['.nkpc'],
-    extIgnore= ['.autosave', '.dae', '.db', '.ifd', '.ma', '.mb', '.mel', '.meta', '.nk', '.nk~', '.nkple', '.gizmo', '.pkl', '.pickle', '.pfcp', '.pfmp', '.psb', '.rv', '.sc', '.svn-base', '.svn/all-wcprops', '.svn/entries', '.swatches', '.tmp', '.tx', '.vars', '.xmp', '.zip'],
-    includeString= None, excludeString= None, latest= False, debug_path= None, timeout_seconds= 180):
-    # timeout_seconds: stop after this many seconds (default 180). Set to None to disable.
-    # More node types: see comment block below (ParticleCache, Precomp, etc.) or Nuke Nodes menu / Python API.
-    # was     extVectorfield= ['.csp','.cms','.cube','.3dl','.blut','.vf','.cub'], 
+def recursive_read(walkPaths=None, maxdepth=-1,
+    extRead=None, extCamera=None, extReadGeo=None, extStickyNote=None,
+    extOCIOFileTransform=None, extVectorfield=None, extOCIOCDLTransform=None, extParticleCache=None,
+    extIgnore=None,
+    includeString=None, excludeString=None, latest=False, debug_path=None, timeout_seconds=10):
+    """Load files from chosen directories into Nuke nodes; backdrops follow folder structure.
+    Extension->loader defaults come from EXT_LOADER_CONFIG at top of file; pass extRead=..., extIgnore=... to override.
+    timeout_seconds: stop after this many seconds (default 10). Set to None to disable."""
+    # Resolve extension lists from config when not overridden
+    extRead = extRead if extRead is not None else list(EXT_LOADER_CONFIG['read'])
+    extCamera = extCamera if extCamera is not None else list(EXT_LOADER_CONFIG['camera'])
+    extReadGeo = extReadGeo if extReadGeo is not None else list(EXT_LOADER_CONFIG['readgeo'])
+    extStickyNote = extStickyNote if extStickyNote is not None else list(EXT_LOADER_CONFIG['stickynote'])
+    extOCIOFileTransform = extOCIOFileTransform if extOCIOFileTransform is not None else list(EXT_LOADER_CONFIG['ociofile'])
+    extVectorfield = extVectorfield if extVectorfield is not None else list(EXT_LOADER_CONFIG['vectorfield'])
+    extOCIOCDLTransform = extOCIOCDLTransform if extOCIOCDLTransform is not None else list(EXT_LOADER_CONFIG['ociocdl'])
+    extParticleCache = extParticleCache if extParticleCache is not None else list(EXT_LOADER_CONFIG['particlecache'])
+    extIgnore = extIgnore if extIgnore is not None else list(EXT_IGNORE_DEFAULT)
 
     #walkPaths= a directory or list of directories (e.g. '/a/dir/' or ['/path/to/dir','/other/path'])
     #blacklist, whitelist: 
@@ -128,8 +160,21 @@ def recursive_read(walkPaths= None, maxdepth= -1,
     import arrange_by_sd
     print(('walkPaths=', walkPaths))
 
-    def build_tree(current_dir, root_path, depth):
-        """Build a tree: {path, relative, files, subdirs}. Files and sibling dirs natural-sorted."""
+    def build_tree(current_dir, root_path, depth, ask_continue_ref=None, timed_out_ref=None):
+        """Build a tree: {path, relative, files, subdirs}. Files and sibling dirs natural-sorted.
+        If ask_continue_ref is set and returns False (over time), returns minimal node and sets timed_out_ref."""
+        if timed_out_ref is not None and timed_out_ref[0]:
+            rel = os.path.relpath(current_dir, root_path).replace('\\', '/')
+            if rel == '.':
+                rel = ''
+            return {'path': current_dir, 'relative': rel, 'files': [], 'subdirs': []}
+        if ask_continue_ref is not None and not ask_continue_ref():
+            if timed_out_ref is not None:
+                timed_out_ref[0] = True
+            rel = os.path.relpath(current_dir, root_path).replace('\\', '/')
+            if rel == '.':
+                rel = ''
+            return {'path': current_dir, 'relative': rel, 'files': [], 'subdirs': []}
         rel = os.path.relpath(current_dir, root_path).replace('\\', '/')
         if rel == '.':
             rel = ''
@@ -138,6 +183,12 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         subdirs = []
         if files_in_cur:
             for name in files_in_cur:
+                if timed_out_ref is not None and timed_out_ref[0]:
+                    break
+                if ask_continue_ref is not None and not ask_continue_ref():
+                    if timed_out_ref is not None:
+                        timed_out_ref[0] = True
+                    break
                 # Only consider direct children: names with path separators belong in a subdir, not here
                 if '/' in name or os.path.sep in name:
                     continue
@@ -148,7 +199,7 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 if os.path.isdir(cur) or os.path.islink(cur):
                     if depth < maxdepth or maxdepth == -1:
                         print(("going into", cur))
-                        subdirs.append(build_tree(cur, root_path, depth + 1))
+                        subdirs.append(build_tree(cur, root_path, depth + 1, ask_continue_ref, timed_out_ref))
                 else:
                     files.append(cur)
         files.sort(key=_alphabetical_sort_key)
@@ -384,43 +435,43 @@ def recursive_read(walkPaths= None, maxdepth= -1,
 
     '''
 
-
+    # Extension -> loader function (built from ext* lists so adding a type is one dict entry)
+    ext_to_loader = {}
+    for e in extRead:
+        ext_to_loader[e] = make_read
+    for e in extCamera:
+        ext_to_loader[e] = make_camera
+    for e in extReadGeo:
+        ext_to_loader[e] = make_readgeo
+    for e in extStickyNote:
+        ext_to_loader[e] = make_stickynote
+    for e in extOCIOFileTransform:
+        ext_to_loader[e] = make_OCIOFileTransform
+    for e in extVectorfield:
+        ext_to_loader[e] = make_vectorfield
+    for e in extOCIOCDLTransform:
+        ext_to_loader[e] = make_OCIOCDLTransform
+    for e in extParticleCache:
+        ext_to_loader[e] = make_ParticleCache
 
     def nuke_loader(file):
-        #load the right Class of object for given file
-        #get the extension, so we know what file to load
-        stripped= nuke.stripFrameRange(file)
-        filenameLower= stripped.lower()
-        _, extension= os.path.splitext(filenameLower)
+        stripped = nuke.stripFrameRange(file)
+        filenameLower = stripped.lower()
+        _, extension = os.path.splitext(filenameLower)
         print((file, extension))
-        if (includeString == None) or (includeString.lower() in filenameLower):
-            if (excludeString == None) or (excludeString.lower() not in filenameLower):
-                try:
-                    _, extension= os.path.splitext(filenameLower)
-                    #extension= os.path.splitext(filenameLower)[1][1:]
-                    print((file, extension))
-                    if extension not in extIgnore:
-                        if extension in extRead:
-                            return make_read(file)
-                        elif extension in extStickyNote:
-                            return make_stickynote(file)
-                        elif extension in extCamera:
-                            return make_camera(file)
-                        elif extension in extReadGeo:
-                            return make_readgeo(file)
-                        elif extension in extOCIOFileTransform:
-                            return make_OCIOFileTransform(file)
-                        elif extension in extVectorfield:
-                            return make_vectorfield(file)
-                        elif extension in extOCIOCDLTransform:
-                            return make_OCIOCDLTransform(file)
-                        elif extension in extParticleCache:
-                            return make_ParticleCache(file)
-                        else:
-                            return make_stickynote_filename_only(file)
-                        #pass#exlist.append(file)
-                except:
-                    return make_stickynote_filename_only(file)
+        if (includeString is not None) and (includeString.lower() not in filenameLower):
+            return None
+        if (excludeString is not None) and (excludeString.lower() in filenameLower):
+            return None
+        if extension in extIgnore:
+            return None
+        try:
+            loader = ext_to_loader.get(extension)
+            if loader is not None:
+                return loader(file)
+            return make_stickynote_filename_only(file)
+        except Exception:
+            return make_stickynote_filename_only(file)
 
 
 
@@ -493,7 +544,41 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         gh = int(nuke.toNode("preferences")["GridHeight"].value())
         bd_pad = max(gw * 2, gh * 2)
         all_created_nodes = []
-        start_time = time.time()
+        start_time = [time.time()]  # mutable so we can reset when user clicks Continue
+        timed_out = [False]
+        current_task = [None]  # so ask_user_continue can close progress bar before dialog
+
+        def ask_user_continue():
+            """If over timeout_seconds, show dialog. Return True to continue (resets timer), False to stop."""
+            if timeout_seconds is None:
+                return True
+            if (time.time() - start_time[0]) <= timeout_seconds:
+                return True
+            # Show dialog on top of existing progress bar; do NOT close or recreate the task
+            # (Nuke can leave the old progress window open, so creating a new one causes two bars)
+            try:
+                from PySide2.QtWidgets import QMessageBox
+                result = QMessageBox.question(
+                    None,
+                    'Recursive Read',
+                    'Process has run for %d seconds. Continue?' % timeout_seconds,
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                if result == QMessageBox.No:
+                    timed_out[0] = True
+                    return False
+                if result == QMessageBox.Yes:
+                    start_time[0] = time.time()
+                    return True
+                timed_out[0] = True
+                return False
+            except Exception:
+                if nuke.ask('Process has run for %d seconds. Continue?' % timeout_seconds):
+                    start_time[0] = time.time()
+                    return True
+                timed_out[0] = True
+                return False
 
         def depth_first_list(tree):
             """Depth-first order: parent before children (for pass 2 nesting)."""
@@ -515,41 +600,60 @@ def recursive_read(walkPaths= None, maxdepth= -1,
         next_base_x = 0
         root_gap = int(max(gw * 6, bd_pad * 2))  # horizontal gap between multiple roots
 
+        current_task[0] = nuke.ProgressTask('Recursive read')
+
         for root_index, walkPath in enumerate(sorted(set(walkPaths), key=_alphabetical_sort_key)):
-            if timeout_seconds is not None and (time.time() - start_time) > timeout_seconds:
+            if not ask_user_continue():
                 break
             if not os.path.isdir(walkPath):
                 continue
-            task = nuke.ProgressTask('Building directory tree')
-            task.setMessage('Scanning %s' % walkPath)
-            tree = build_tree(walkPath, walkPath, 0)
+            if current_task[0]:
+                current_task[0].setMessage('Scanning %s' % walkPath)
+            tree = build_tree(walkPath, walkPath, 0, ask_user_continue, timed_out)
             df = depth_first_list(tree)
             total_dirs = len(df)
             if total_dirs == 0:
                 continue
+            if timed_out[0]:
+                break
 
             side_pad = int(gw * 2)
             base_x = next_base_x
             base_y = 0
 
-            def layout_recursive(node, start_x, start_y, dfs_index_ref):
+            def layout_recursive(node, start_x, start_y, dfs_index_ref, timed_out_ref):
                 """Place file nodes only: layout by extension, then recurse into subdirs (each below the previous). Returns end_y."""
+                if timed_out_ref[0]:
+                    return start_y
+                if timeout_seconds is not None and (time.time() - start_time[0]) > timeout_seconds:
+                    if not ask_user_continue():
+                        timed_out_ref[0] = True
+                        return start_y
                 rel = node.get('relative') or ''
-                if task.isCancelled():
+                if current_task[0] and current_task[0].isCancelled():
                     return start_y
                 idx = dfs_index_ref[0]
                 dfs_index_ref[0] += 1
-                task.setMessage('Layout %s (%d/%d)' % (rel or '(root)', idx + 1, total_dirs))
-                task.setProgress(int(100.0 * (idx + 1) / total_dirs))
+                if current_task[0]:
+                    current_task[0].setMessage('Layout %s (%d/%d)' % (rel or '(root)', idx + 1, total_dirs))
+                    current_task[0].setProgress(int(100.0 * (idx + 1) / total_dirs))
 
                 files_here = (node.get('files') or [])[:]
                 files_here.sort(key=_alphabetical_sort_key)
                 returnNodes = []
                 for filepath in files_here:
+                    if timed_out_ref[0]:
+                        break
+                    if timeout_seconds is not None and (time.time() - start_time[0]) > timeout_seconds:
+                        if not ask_user_continue():
+                            timed_out_ref[0] = True
+                            break
                     returnNodes.append(nuke_loader(filepath))
                 nodes_here = [n for n in returnNodes if n is not None]
                 node['nodes'] = nodes_here
                 all_created_nodes.extend(nodes_here)
+                if timed_out_ref[0]:
+                    return start_y
 
                 if nodes_here:
                     layout_nodes_by_extension(nodes_here, start_x, start_y)
@@ -557,13 +661,16 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                     start_y = block_bottom + bd_pad
 
                 for sub in node.get('subdirs') or []:
-                    start_y = layout_recursive(sub, start_x + side_pad, start_y, dfs_index_ref) + bd_pad
+                    start_y = layout_recursive(sub, start_x + side_pad, start_y, dfs_index_ref, timed_out_ref) + bd_pad
 
                 return start_y
 
             # 1) Layout: place all file nodes (no backdrops yet)
-            task.setMessage('Layout (files only)')
-            layout_recursive(tree, base_x, base_y, [0])
+            if current_task[0]:
+                current_task[0].setMessage('Layout (files only)')
+            layout_recursive(tree, base_x, base_y, [0], timed_out)
+            if timed_out[0]:
+                break
 
             # Optional debug file (after layout, before backdrops)
             if debug_path:
@@ -589,9 +696,15 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             # 2) Create all backdrops at the end (reverse depth-first: children first, then parent contains them)
             node_to_dfs_idx = {id(n): i for i, n in enumerate(df)}
 
-            def create_backdrops_reverse_dfs(node):
+            def create_backdrops_reverse_dfs(node, timed_out_ref):
+                if timed_out_ref[0]:
+                    return
+                if timeout_seconds is not None and (time.time() - start_time[0]) > timeout_seconds:
+                    if not ask_user_continue():
+                        timed_out_ref[0] = True
+                        return
                 for sub in node.get('subdirs') or []:
-                    create_backdrops_reverse_dfs(sub)
+                    create_backdrops_reverse_dfs(sub, timed_out_ref)
                 contents = list(node.get('nodes') or [])
                 for sub in node.get('subdirs') or []:
                     if sub.get('backdrop'):
@@ -607,8 +720,11 @@ def recursive_read(walkPaths= None, maxdepth= -1,
                 bd = backdrop_sd.make_backdrop(contents, label=label, fix_depth=False, cover_backdrops=True)
                 node['backdrop'] = bd
 
-            task.setMessage('Creating backdrops')
-            create_backdrops_reverse_dfs(tree)
+            if current_task[0]:
+                current_task[0].setMessage('Creating backdrops')
+            create_backdrops_reverse_dfs(tree, timed_out)
+            if timed_out[0]:
+                break
 
             # 3) Z-order: assign in depth-first order so root=0 (back), deeper=higher z (on top).
             # That way the larger parent backdrop is behind the smaller child backdrops it contains.
@@ -652,7 +768,11 @@ def recursive_read(walkPaths= None, maxdepth= -1,
             if all_items:
                 next_base_x = max(n.xpos() + n.screenWidth() for n in all_items) + root_gap
 
-            del task
+        # Close the single progress task
+        if current_task[0] is not None:
+            t = current_task[0]
+            current_task[0] = None
+            del t
 
         if all_created_nodes:
             for n in nuke.allNodes():

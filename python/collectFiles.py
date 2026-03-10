@@ -116,6 +116,7 @@ def collectPanel():
     rsync_available = _rsync_path() is not None
     colPanel.addEnumerationPulldown("Transfer mode:", "copy move symlink hardlink")
     colPanel.addBooleanCheckBox("Use rsync when available", rsync_available)
+    colPanel.addBooleanCheckBox("Change file paths to relative", True)
     colPanel.addButton("Cancel")
     colPanel.addButton("OK")
 
@@ -125,8 +126,9 @@ def collectPanel():
     if transfer_mode not in TRANSFER_MODES:
         transfer_mode = "copy"
     use_rsync = bool(colPanel.value("Use rsync when available"))
+    use_relative_paths = bool(colPanel.value("Change file paths to relative"))
 
-    return (retVar, pathVar, transfer_mode, use_rsync)
+    return (retVar, pathVar, transfer_mode, use_rsync, use_relative_paths)
 
 # Check files
 def checkForKnob(node, checkKnob ):
@@ -423,11 +425,12 @@ def _collect_preflight(nuke_nodes, videoExtension, paddings):
 # Parent Function
 def collectFiles():
     panelResult = collectPanel()
-    if len(panelResult) == 4:
-        retVar, pathVar, transfer_mode, use_rsync = panelResult
+    if len(panelResult) == 5:
+        retVar, pathVar, transfer_mode, use_rsync, use_relative_paths = panelResult
     else:
         retVar, pathVar = panelResult[0], panelResult[1]
         transfer_mode, use_rsync = 'copy', bool(_rsync_path())
+        use_relative_paths = True
 
     #copy script to target directory
     script2Copy = nuke.root()['name'].value()
@@ -448,6 +451,12 @@ def collectFiles():
 
     # hit OK
     if retVar == 1 and pathVar != '':
+        # Save current script before running anything
+        try:
+            nuke.scriptSave()
+        except Exception:
+            pass
+
         targetPath = pathVar
 
         # Check to make sure a file path is not passed through
@@ -664,84 +673,88 @@ def collectFiles():
                 print('')
 
             if (cancelCollect == 0):
-                # Save script to archive path
+                # Save current script at its path before changing any knobs
+                try:
+                    nuke.scriptSave()
+                except Exception:
+                    pass
+                # Save script to archive path (with current paths)
                 newScriptPath = targetPath + scriptName
                 nuke.scriptSaveAs(newScriptPath)
-    
-                #link files to new path
-                for fileNode in nuke.allNodes():
-                    if has_file_knob(fileNode):
-                        if not checkForKnob(fileNode, 'Render'):
-                            fileNodePath = fileNode['file'].value()
-                            if (fileNodePath == ''):
-                                continue
-                            else:
-                                
-                                if checkForKnob(fileNode, 'first'):
-                                    pathLower = fileNodePath.lower()
-                                    isVideoFile = any(pathLower.endswith('.' + ext.lower()) for ext in videoExtension)
-                                    if isVideoFile and not path_is_sequence(fileNodePath):
+
+                # Link files to new path (only if user chose relative paths)
+                if use_relative_paths:
+                    for fileNode in nuke.allNodes():
+                        if has_file_knob(fileNode):
+                            if not checkForKnob(fileNode, 'Render'):
+                                fileNodePath = fileNode['file'].value()
+                                if (fileNodePath == ''):
+                                    continue
+                                else:
+                                    if checkForKnob(fileNode, 'first'):
+                                        pathLower = fileNodePath.lower()
+                                        isVideoFile = any(pathLower.endswith('.' + ext.lower()) for ext in videoExtension)
+                                        if isVideoFile and not path_is_sequence(fileNodePath):
+                                            fileNodePath = fileNode['file'].value()
+                                            readFilename = fileNodePath.split("/")[-1]
+                                            reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
+                                            fileNode['file'].setValue(reloadPath)
+                                        else:
+                                            # frame range: single frame or sequence
+                                            frameFirst = int(fileNode['first'].value())
+                                            frameLast = int(fileNode['last'].value())
+                                            if (frameFirst == frameLast):
+                                                fileNodePath = fileNode['file'].value()
+                                                readFilename = fileNodePath.split("/")[-1]
+                                                reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
+                                                fileNode['file'].setValue(reloadPath)
+                                            elif path_is_sequence(fileNodePath):
+                                                fileNodePath = fileNode['file'].value()
+                                                dirSeq = fileNodePath.split("/")[-2] + '/'
+                                                readFilename = fileNodePath.split("/")[-1]
+                                                reloadPath = '[file dirname [value root.name]]/footage/' + dirSeq + readFilename
+                                                fileNode['file'].setValue(reloadPath)
+                                            else:
+                                                fileNodePath = fileNode['file'].value()
+                                                readFilename = fileNodePath.split("/")[-1]
+                                                reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
+                                                fileNode['file'].setValue(reloadPath)
+                                    else:
                                         fileNodePath = fileNode['file'].value()
                                         readFilename = fileNodePath.split("/")[-1]
                                         reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
                                         fileNode['file'].setValue(reloadPath)
-                                    else:
-                                        # frame range: single frame or sequence
-                                        frameFirst = int(fileNode['first'].value())
-                                        frameLast = int(fileNode['last'].value())
-                                        if (frameFirst == frameLast):
-                                            fileNodePath = fileNode['file'].value()
-                                            readFilename = fileNodePath.split("/")[-1]
-                                            reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
-                                            fileNode['file'].setValue(reloadPath)
-                                        elif path_is_sequence(fileNodePath):
-                                            fileNodePath = fileNode['file'].value()
-                                            dirSeq = fileNodePath.split("/")[-2] + '/'
-                                            readFilename = fileNodePath.split("/")[-1]
-                                            reloadPath = '[file dirname [value root.name]]/footage/' + dirSeq + readFilename
-                                            fileNode['file'].setValue(reloadPath)
-                                        else:
-                                            fileNodePath = fileNode['file'].value()
-                                            readFilename = fileNodePath.split("/")[-1]
-                                            reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
-                                            fileNode['file'].setValue(reloadPath)
-                                
-                                else:
-                                    fileNodePath = fileNode['file'].value()
-                                    readFilename = fileNodePath.split("/")[-1]
-                                    reloadPath = '[file dirname [value root.name]]/footage/' + readFilename
-                                    fileNode['file'].setValue(reloadPath)
+                            else:
+                                pass
                         else:
                             pass
-                    else:
-                        pass
 
-                # Rewrite paths in text knobs (labels, etc.) to point at collected footage
-                new_path_prefix = '[file dirname [value root.name]]/footage/'
-                for e in embedded_files:
-                    try:
-                        node, kname = e['node'], e['knob_name']
-                        path_as_in_text = e['path_as_in_text']
-                        dest_name = e['dest_name']
-                        new_path = new_path_prefix + dest_name
-                        k = node.knob(kname)
-                        if k is None:
-                            continue
+                    # Rewrite paths in text knobs (labels, etc.) to point at collected footage
+                    new_path_prefix = '[file dirname [value root.name]]/footage/'
+                    for e in embedded_files:
                         try:
-                            raw = k.getValue() if hasattr(k, 'getValue') else k.value()
+                            node, kname = e['node'], e['knob_name']
+                            path_as_in_text = e['path_as_in_text']
+                            dest_name = e['dest_name']
+                            new_path = new_path_prefix + dest_name
+                            k = node.knob(kname)
+                            if k is None:
+                                continue
+                            try:
+                                raw = k.getValue() if hasattr(k, 'getValue') else k.value()
+                            except Exception:
+                                raw = k.value()
+                            if not isinstance(raw, str) or path_as_in_text not in raw:
+                                continue
+                            new_val = raw.replace(path_as_in_text, new_path, 1)
+                            if hasattr(k, 'setValue'):
+                                k.setValue(new_val)
+                            elif hasattr(k, 'setText'):
+                                k.setText(new_val)
                         except Exception:
-                            raw = k.value()
-                        if not isinstance(raw, str) or path_as_in_text not in raw:
-                            continue
-                        new_val = raw.replace(path_as_in_text, new_path, 1)
-                        if hasattr(k, 'setValue'):
-                            k.setValue(new_val)
-                        elif hasattr(k, 'setText'):
-                            k.setText(new_val)
-                    except Exception:
-                        pass
+                            pass
 
-                nuke.scriptSave()
+                    nuke.scriptSave()
                 print ('COLLECT DONE!!')
                 nuke.message('COLLECT DONE!!')
 

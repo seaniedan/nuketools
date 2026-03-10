@@ -72,14 +72,71 @@ def sizeof_fmt(num):
             return "%3.2f%s" % (num, x)
         num /= 1024.0
 
-def runProcess(exe):   
-    import subprocess 
-    p = subprocess.Popen(exe, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8')
-    while(True):
-        retcode = p.poll() #returns None while subprocess is running
+def _imagemagick_install_hint():
+    import sys
+    if sys.platform == 'darwin':
+        return "  brew install imagemagick"
+    if sys.platform == 'win32':
+        return "  choco install imagemagick   # Chocolatey\n  or: winget install ImageMagick.ImageMagick"
+    # Linux: dnf (Fedora/RHEL) or apt (Debian/Ubuntu)
+    return "  sudo dnf install ImageMagick   # Fedora/RHEL\n  or: sudo apt install imagemagick   # Debian/Ubuntu"
+
+
+def _find_identify():
+    """Resolve path to identify so Nuke finds it even when PATH doesn't include Homebrew etc."""
+    import os
+    import shutil
+    import sys
+
+    found = shutil.which('identify')
+    if found:
+        return found
+
+    if sys.platform == 'darwin':
+        for prefix in ('/opt/homebrew', '/usr/local'):
+            exe = os.path.join(prefix, 'bin', 'identify')
+            if os.path.isfile(exe):
+                return exe
+    elif sys.platform == 'win32':
+        import glob
+        for base in ('C:\\Program Files', 'C:\\Program Files (x86)'):
+            for prog in glob.glob(os.path.join(base, 'ImageMagick*')):
+                exe = os.path.join(prog, 'identify.exe')
+                if os.path.isfile(exe):
+                    return exe
+    else:
+        if os.path.isfile('/usr/bin/identify'):
+            return '/usr/bin/identify'
+
+    return 'identify'
+
+
+def runProcess(exe):
+    import subprocess
+    try:
+        p = subprocess.Popen(
+            exe,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding='utf8'
+        )
+    except FileNotFoundError:
+        missing_cmd = exe[0] if exe else "command"
+        yield (
+            f"{missing_cmd!r} was not found on PATH.\n"
+            "Install ImageMagick so the `identify` command is available, then restart Nuke.\n"
+            "Examples:\n" + _imagemagick_install_hint() + "\n"
+        )
+        return
+    except OSError as err:
+        yield f"Could not run external command {exe!r}: {err}\n"
+        return
+
+    while True:
+        retcode = p.poll()
         line = p.stdout.readline()
         yield line
-        if(retcode is not None):
+        if retcode is not None:
             break
 
 
@@ -138,7 +195,7 @@ def get_all_node_info():
                 #get ImageMagick info
                 magoutput+= "\n==================================================\nImageMagick info:\n"
                 #try:
-                for line in runProcess(['identify', '-verbose', file_name]):
+                for line in runProcess([_find_identify(), '-verbose', file_name]):
                         magoutput+= line
                 #except:
                 #    magoutput+= "not available: ImageMagick not installed, or not an image file?"
