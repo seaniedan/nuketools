@@ -45,10 +45,10 @@ def copy_command_line_render_command_to_clipboard():
         #if sgNodes:
 
         nodeNames= ",".join(node.name() for node in nodes)
-        execuable= nuke.env['ExecutablePath']
+        executable= nuke.env['ExecutablePath']
         scriptName= nuke.scriptName()#nuke.root()['name'].value() #correctly returns '' if script isn't saved
         renderRange= '{}-{}'.format(nuke.root().firstFrame(), nuke.root().lastFrame())
-        command_to_copy= '{} -X {} {} {}'.format(execuable, nodeNames, scriptName, renderRange)
+        command_to_copy= '{} -F {} -X {} {}'.format(executable, renderRange, nodeNames, scriptName)
         return command_to_copy
 
     nuke.scriptSave()
