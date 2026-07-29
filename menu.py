@@ -409,8 +409,10 @@ sdnuketools_menu.addCommand("Other/Analyse Input Sequences on selected Compare_s
 #autocrop
 sdnuketools_menu.addCommand("Transform/Put auto-crop after selected node",
     "import autocrop_sd; autocrop_sd.autocrop(layer= 'rgba')")
-sdnuketools_menu.addCommand("Transform/Put un-crop after selected Crop node", 
+sdnuketools_menu.addCommand("Transform/Put un-crop after selected Crop node",
     "import uncrop_sd; uncrop_sd.uncrop()")
+sdnuketools_menu.addCommand("Transform/Put static bbox Crop after selected node",
+    "import static_bbox_sd; static_bbox_sd.static_bbox()")
 
 #print environment variables
 sdnuketools_menu.addCommand("Python/Print Environment Variables", 
