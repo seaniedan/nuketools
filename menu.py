@@ -407,8 +407,8 @@ sdnuketools_menu.addCommand("Other/Analyse Input Sequences on selected Compare_s
     "[node['comparesequence'].execute() for node in nuke.selectedNodes('Group')]")
 
 #autocrop
-sdnuketools_menu.addCommand("Transform/Put auto-crop after selected node", 
-    "import nukescripts; nukescripts.autocrop(first= None, last= None, inc= None, layer= 'rgba')")
+sdnuketools_menu.addCommand("Transform/Put auto-crop after selected node",
+    "import autocrop_sd; autocrop_sd.autocrop(layer= 'rgba')")
 sdnuketools_menu.addCommand("Transform/Put un-crop after selected Crop node", 
     "import uncrop_sd; uncrop_sd.uncrop()")
 
