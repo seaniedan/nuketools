@@ -1,31 +1,47 @@
 import nuke
 import nukescripts
 
+def _node_range(node):
+    #this node's own first/last frame, falling back to the root range if the
+    #node doesn't report one.
+    try:
+        return int(node.firstFrame()), int(node.lastFrame())
+    except:
+        return (int(nuke.root()['first_frame'].value()),
+                int(nuke.root()['last_frame'].value()))
+
 def autocrop(layer= 'rgba'):
-    #put an auto-crop after each selected node, using that node's OWN input
+    #put an auto-crop after EACH selected node, using that node's OWN input
     #first/last frame instead of the project (root) frame range.
-    #nukescripts.autocrop() falls back to root.first_frame/last_frame when
-    #passed first=None/last=None, which is often wider than the actual footage.
+    #
+    #the stock nukescripts.autocrop() takes a single range and applies it to
+    #every selected node, so a combined min->max range would scan out-of-range
+    #frames for the shorter clips. run it once per node, each over its own
+    #range, so nodes with different frame ranges each get cropped correctly.
 
     nodes= nuke.selectedNodes()
     if not nodes:
         nuke.message("Please select a node to auto-crop.")
-        return
+        return []
 
-    #gather the frame range from the selected node(s)
-    firsts= []
-    lasts= []
+    newcrops= []
     for node in nodes:
-        try:
-            firsts.append(int(node.firstFrame()))
-            lasts.append(int(node.lastFrame()))
-        except:
-            #fall back to root range for this node if it has no reported range
-            firsts.append(int(nuke.root()['first_frame'].value()))
-            lasts.append(int(nuke.root()['last_frame'].value()))
+        first, last= _node_range(node)
 
-    first= min(firsts)
-    last= max(lasts)
+        #select just this node and auto-crop it over its own range
+        for n in nuke.selectedNodes():
+            n['selected'].setValue(False)
+        node['selected'].setValue(True)
 
-    #hand off to the stock autocrop with an explicit range
-    nukescripts.autocrop(first= first, last= last, inc= None, layer= layer)
+        before= set(n.name() for n in nuke.allNodes())
+        nukescripts.autocrop(first= first, last= last, inc= None, layer= layer)
+        newcrops += [n for n in nuke.allNodes()
+                     if n.name() not in before and 'box' in n.knobs()]
+
+    #leave the new crops selected
+    for n in nuke.allNodes():
+        n['selected'].setValue(False)
+    for c in newcrops:
+        c['selected'].setValue(True)
+
+    return newcrops
