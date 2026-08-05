@@ -292,6 +292,9 @@ render_menu.addCommand("Copy list of missing frames from selected Read or Write 
 render_menu.addCommand("Make Thumbnails",
     "import thumbnails_sd; thumbnails_sd.make_thumbnails(nuke.selectedNodes())")
 
+render_menu.addCommand("Selected Nodes to Looping GIF",
+    "import selected_nodes_to_gif_sd; selected_nodes_to_gif_sd.render_selected_nodes_to_looping_gifs()")
+
 
 render_menu.addCommand("Copy Command Line Render Command",
     "import copy_command_line_render_command_sd;\
