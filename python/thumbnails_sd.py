@@ -6,7 +6,7 @@
 # doesnt work on shots where file not saved and no filename at top of chain.
 
 
-import nuke, os
+import nuke, os, re
 
 
 def open_dir_in_browser(dir):
@@ -69,10 +69,14 @@ def make_tn(sn, rn, _panel):
     #make a thumbnail image in Nuke
     #returns the path of the image created 
     import sys, os, shutil
-    file= rn['file'].evaluate()
-    name= os.path.basename(file)
-    root= name.split('.')
-    name= root[0]  #will cause problems if there are unexpected numnber of dots in filepath
+    #derive a clean name from the source file. strip only the real extension
+    #(so names containing dots, e.g. a screenshot "... at 15.26.02", survive),
+    #then drop a trailing frame-number token for sequences (shot.####.exr -> shot).
+    raw= rn['file'].value() or rn['file'].evaluate()
+    name= os.path.splitext(os.path.basename(raw))[0]
+    head= name.rsplit('.', 1)
+    if len(head)== 2 and re.search(r'[#]|%0?\d*d|\$', head[1]):
+        name= head[0]
     #print _panel.value('Save path'), _panel.value("Image format")
     jpgPath= _panel.value('Save path').replace( "\\", "/" )+ "/"+ name+ "."+ str(_panel.value("Image format"))
 
@@ -240,7 +244,7 @@ def make_thumbnails(nodes):
         panel= nuke.Panel("Make thumbnails")
         #panel.addSingleLineInput('width', 200)
         panel.addExpressionInput("Width", "width/1")
-        panel.addClipnameSearch('Save path', os.path.join(os.path.expanduser("~"), 'thumbnails'))
+        panel.addClipnameSearch('Save path', os.path.join(os.path.expanduser("~"), 'Pictures', 'thumbnails'))
         panel.addBooleanCheckBox("Burn-in filename", True)
         panel.addBooleanCheckBox("Embed current LUT", True)
         panel.addBooleanCheckBox("Keep reformat nodes and do not render", False)
