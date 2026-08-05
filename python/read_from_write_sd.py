@@ -20,6 +20,16 @@ MOVIE_EXTENSIONS = [
     '.mkv', '.webm', '.r3d', '.braw', '.ari'
 ]
 
+# frame-number placeholders that mark a path as a real sequence: #### hashes,
+# %0Nd printf padding, or a [frame] TCL expression. A path without any of
+# these (e.g. 'image1.jpg') is a single still, not frame 1 of a sequence.
+FRAME_TOKEN_RE = re.compile(r'#+|%0?\d*d|\[frame\b')
+
+
+def _has_frame_token(path):
+    """True if the path contains a frame-number placeholder (a real sequence)."""
+    return bool(FRAME_TOKEN_RE.search(path or ''))
+
 # Mapping of node classes to their reader node types
 NODE_READER_MAP = {
     'GenerateLUT': 'OCIOFileTransform',
@@ -100,16 +110,25 @@ def readFromWrite(node):
     try:
         # Get evaluated filepath (with frame number substituted)
         filepath = nuke.filename(node, nuke.REPLACE)
-        
-        # Resolve to sequence path BEFORE creating Read (avoids blank nodes on failure)
-        resolved_filepath = _find_sequence_path(filepath)
-        
+        raw_path = node['file'].value()
+        extension = re.sub(r' .+', '', os.path.splitext(filepath)[1].lower())
+        is_movie = extension in MOVIE_EXTENSIONS
+
         read = nuke.nodes.Read()
-        read['file'].fromUserText(resolved_filepath)
+        if is_movie or _has_frame_token(raw_path):
+            # real sequence (or a movie): resolve the range and let Nuke parse it.
+            # Resolve BEFORE creating the Read so a failure leaves no blank node.
+            resolved_filepath = _find_sequence_path(filepath)
+            read['file'].fromUserText(resolved_filepath)
+        else:
+            # single still (e.g. 'image1.jpg'): set the exact file literally, so
+            # Nuke doesn't read the trailing number as a frame and collapse
+            # 'image1.jpg' + 'image2.jpg' into 'image#.jpg 1-2'
+            read['file'].setValue(filepath)
         read.setXYpos(node.xpos(), node.ypos() + read.screenHeight())
-        
+
         _copy_colorspace(node, read)
-        
+
         return read
 
     except Exception as e:
@@ -134,14 +153,15 @@ def updateRead(node):
         node['origlast'].setValue(temp_read['origlast'].value())
         
         nuke.delete(temp_read)
-    else:
+    elif _has_frame_token(node['file'].value()):
         # Sequences: re-detect the frame range from disk
         try:
             resolved_filepath = _find_sequence_path(filepath)
             node['file'].fromUserText(resolved_filepath)
         except FileNotFoundError:
             pass  # Keep existing file path if no matches found
-    
+    # else: single still, nothing to re-detect - just reload it below
+
     node['reload'].execute()
     return node
 
